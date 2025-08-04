@@ -89,17 +89,18 @@ export class BookingService {
   /**
    * Calculate shipping cost based on weight and service type
    */
-  private static calculateShippingCost(weight: number, serviceType: string): number {
+  private static calculateShippingCost(weight: number, serviceType: string): { baseCost: number; weightCharges: number; totalCost: number } {
     const baseRates = {
       standard: 10,
       express: 20,
       same_day: 35
     };
 
-    const baseRate = baseRates[serviceType as keyof typeof baseRates] || baseRates.standard;
-    const weightRate = Math.ceil(weight) * 5; // $5 per kg
+    const baseCost = baseRates[serviceType as keyof typeof baseRates] || baseRates.standard;
+    const weightCharges = Math.ceil(weight) * 5; // $5 per kg
+    const totalCost = baseCost + weightCharges;
     
-    return baseRate + weightRate;
+    return { baseCost, weightCharges, totalCost };
   }
 
   /**
@@ -135,8 +136,8 @@ export class BookingService {
     const bookingNumber = this.generateBookingNumber();
     const trackingNumber = this.generateTrackingNumber();
     
-    // Calculate total cost
-    const totalCost = this.calculateShippingCost(bookingData.weight, bookingData.serviceType);
+    // Calculate cost breakdown
+    const costBreakdown = this.calculateShippingCost(bookingData.weight, bookingData.serviceType);
 
     // Create booking
     const booking = await BookingRepository.create({
@@ -144,7 +145,9 @@ export class BookingService {
       customerId: new Types.ObjectId(bookingData.customerId),
       bookingNumber,
       trackingNumber,
-      totalCost,
+      baseCost: costBreakdown.baseCost,
+      weightCharges: costBreakdown.weightCharges,
+      totalCost: costBreakdown.totalCost,
       status: 'pending'
     });
 
@@ -186,16 +189,16 @@ export class BookingService {
     // Build filter object
     const filter: any = {};
     if (status) filter.status = status;
-    if (customerId) filter.customerId = customerId;
+    if (customerId) filter.customerId = new Types.ObjectId(customerId);
 
     // Execute queries using repository
-    const { bookings, totalCount } = await BookingRepository.findWithPagination({
+    const { bookings, totalCount } = await BookingRepository.findWithPagination(
       filter,
       page,
       limit,
       sortBy,
       sortOrder
-    });
+    );
 
     // Convert to response format
     const bookingResponses = bookings.map(booking => this.toBookingResponse(booking as any));

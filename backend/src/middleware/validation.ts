@@ -185,15 +185,15 @@ export const validateCreateBooking = [
 
 // Address validation rules
 export const validateCreateAddress = [
-  body('name')
+  body('label')
     .trim()
     .isLength({ min: 2, max: 100 })
-    .withMessage('Address name must be between 2 and 100 characters'),
+    .withMessage('Address label must be between 2 and 100 characters'),
   
-  body('address')
+  body('street')
     .trim()
     .isLength({ min: 5, max: 200 })
-    .withMessage('Address must be between 5 and 200 characters'),
+    .withMessage('Street address must be between 5 and 200 characters'),
   
   body('contactName')
     .trim()
@@ -213,14 +213,39 @@ export const validateCreateAddress = [
     .matches(/^[a-zA-Z\s]+$/)
     .withMessage('City name can only contain letters and spaces'),
   
-  body('postalCode')
+  body('state')
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage('State must be between 2 and 50 characters')
+    .matches(/^[a-zA-Z\s]+$/)
+    .withMessage('State name can only contain letters and spaces'),
+  
+  body('zipCode')
     .trim()
     .matches(/^[0-9]{6}$/)
-    .withMessage('Postal code must be a 6-digit number'),
+    .withMessage('Zip code must be a 6-digit number'),
   
   body('type')
-    .isIn(['pickup', 'delivery', 'both'])
-    .withMessage('Address type must be pickup, delivery, or both'),
+    .isIn(['home', 'office', 'warehouse', 'other'])
+    .withMessage('Address type must be home, office, warehouse, or other'),
+  
+  body('country')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Country must be between 2 and 50 characters'),
+  
+  body('landmark')
+    .optional()
+    .trim()
+    .isLength({ max: 200 })
+    .withMessage('Landmark must be less than 200 characters'),
+  
+  body('instructions')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Instructions must be less than 500 characters'),
   
   validateRequest
 ];

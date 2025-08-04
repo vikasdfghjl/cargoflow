@@ -27,6 +27,9 @@ export interface BookingCreateData {
   serviceType: 'standard' | 'express' | 'same_day';
   status: string;
   pickupDate: Date;
+  baseCost: number;
+  weightCharges?: number;
+  insuranceCharges?: number;
   totalCost: number;
   specialInstructions?: string;
   insurance?: boolean;

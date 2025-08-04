@@ -78,14 +78,22 @@ export class AddressService {
    * Create a new address
    */
   static async createAddress(userId: string, addressData: AddressData): Promise<AddressResponse> {
+    // Check if this is the user's first address
+    const existingAddressCount = await AddressRepository.countByUserId(userId);
+    const isFirstAddress = existingAddressCount === 0;
+
+    // Set as default if it's the first address or explicitly requested
+    const shouldSetAsDefault = isFirstAddress || addressData.isDefault;
+
     // If this is being set as default, unset other defaults
-    if (addressData.isDefault) {
+    if (shouldSetAsDefault) {
       await AddressRepository.unsetAllDefaultsForUser(userId);
     }
 
     // Create address
     const address = await AddressRepository.create({
       ...addressData,
+      isDefault: shouldSetAsDefault || false,
       userId: new Types.ObjectId(userId)
     });
 
@@ -117,17 +125,16 @@ export class AddressService {
     } = query;
 
     // Build filter object
-    const filter: any = { userId };
+    const filter: any = { userId: new Types.ObjectId(userId) };
     if (type) filter.type = type;
 
     // Execute queries using repository
-    const { addresses, totalCount } = await AddressRepository.findWithPagination({
+    const { addresses, totalCount } = await AddressRepository.findWithPagination(
       filter,
       page,
       limit,
-      sortBy: 'isDefault',
-      sortOrder: 'desc'
-    });
+      { isDefault: -1, createdAt: -1 }
+    );
 
     // Convert to response format
     const addressResponses = addresses.map(address => this.toAddressResponse(address as any));
@@ -162,6 +169,15 @@ export class AddressService {
     
     if (!existingAddress) {
       throw new NotFoundError('Address not found');
+    }
+
+    // If trying to unset default flag, check if it's the only address
+    if (updateData.isDefault === false && existingAddress.isDefault) {
+      const addressCount = await AddressRepository.countByUserId(userId);
+      if (addressCount === 1) {
+        // Don't allow removing default flag if it's the only address
+        updateData.isDefault = true;
+      }
     }
 
     // If setting as default, unset other defaults first
@@ -239,7 +255,9 @@ export class AddressService {
    * Get addresses by type
    */
   static async getAddressesByType(userId: string, type: 'pickup' | 'delivery' | 'both'): Promise<AddressResponse[]> {
-    const addresses = await AddressRepository.findByType(userId, type);
+    // For 'both', pass empty string to get all addresses  
+    const filterType = type === 'both' ? '' : type;
+    const addresses = await AddressRepository.findByType(userId, filterType);
     return addresses.map(address => this.toAddressResponse(address as any));
   }
 

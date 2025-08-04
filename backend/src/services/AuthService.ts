@@ -1,5 +1,5 @@
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import * as bcrypt from 'bcryptjs';
+import * as jwt from 'jsonwebtoken';
 import { Types } from 'mongoose';
 import { 
   ValidationError, 
@@ -139,11 +139,19 @@ export class AuthService {
       throw new AuthenticationError('Invalid email or password');
     }
 
+    // Check if user is active
+    if (!user.isActive) {
+      throw new AuthenticationError('Account is deactivated');
+    }
+
     // Check password
     const isPasswordValid = await this.comparePassword(password, user.password);
     if (!isPasswordValid) {
       throw new AuthenticationError('Invalid email or password');
     }
+
+    // Update last login timestamp
+    await UserRepository.updateById(user._id.toString(), { lastLogin: new Date() });
 
     // Generate token
     const token = this.generateToken((user._id as Types.ObjectId).toString(), user.userType);
