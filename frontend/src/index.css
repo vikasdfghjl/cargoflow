@@ -1,0 +1,184 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* B2B Transport Application Design System
+   Professional logistics platform inspired design
+   All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Core Backgrounds */
+    --background: 0 0% 100%;
+    --foreground: 215 25% 15%;
+    
+    /* Transport Brand Colors - Professional Blues */
+    --transport-primary: 212 84% 12%;
+    --transport-primary-light: 212 84% 20%;
+    --transport-accent: 212 50% 50%;
+    --transport-accent-light: 212 50% 85%;
+    
+    /* Action Colors - Logistics Orange */
+    --action-primary: 25 100% 50%;
+    --action-secondary: 25 100% 40%;
+    --action-light: 25 100% 95%;
+    
+    /* Status Colors */
+    --status-success: 142 71% 45%;
+    --status-warning: 43 96% 56%;
+    --status-error: 0 84% 60%;
+    --status-info: 212 50% 50%;
+    
+    /* Neutral Grays */
+    --neutral-50: 210 20% 98%;
+    --neutral-100: 210 15% 96%;
+    --neutral-200: 210 15% 89%;
+    --neutral-300: 210 15% 78%;
+    --neutral-400: 210 15% 56%;
+    --neutral-500: 210 15% 45%;
+    --neutral-600: 210 15% 35%;
+    --neutral-700: 210 15% 25%;
+    --neutral-800: 210 15% 15%;
+    --neutral-900: 210 25% 8%;
+
+    /* Component Mappings */
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 15%;
+
+    --primary: 212 84% 12%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 15% 96%;
+    --secondary-foreground: 212 84% 12%;
+
+    --muted: 210 15% 96%;
+    --muted-foreground: 210 15% 45%;
+
+    --accent: 25 100% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 15% 89%;
+    --input: 210 15% 89%;
+    --ring: 212 84% 12%;
+
+    --radius: 0.5rem;
+
+    /* Professional Gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(212 84% 12%), hsl(212 50% 50%));
+    --gradient-action: linear-gradient(135deg, hsl(25 100% 50%), hsl(25 100% 40%));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 15% 98%));
+    
+    /* Professional Shadows */
+    --shadow-card: 0 2px 8px hsl(212 84% 12% / 0.08);
+    --shadow-elevated: 0 8px 32px hsl(212 84% 12% / 0.12);
+    --shadow-action: 0 4px 16px hsl(25 100% 50% / 0.25);
+    
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    /* Sidebar */
+    --sidebar-background: 212 84% 12%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 25 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 212 84% 20%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 212 84% 20%;
+    --sidebar-ring: 25 100% 50%;
+  }
+
+  .dark {
+    --background: 210 25% 8%;
+    --foreground: 0 0% 100%;
+
+    --card: 210 15% 15%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 210 15% 15%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 212 50% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 15% 25%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 210 15% 25%;
+    --muted-foreground: 210 15% 65%;
+
+    --accent: 25 100% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 15% 25%;
+    --input: 210 15% 25%;
+    --ring: 212 50% 50%;
+    
+    --sidebar-background: 210 25% 8%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 25 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 15% 15%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 210 15% 15%;
+    --sidebar-ring: 25 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  
+  /* Professional Typography */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold text-foreground;
+  }
+  
+  /* Transport-specific utility classes */
+  .transport-gradient {
+    background: var(--gradient-hero);
+  }
+  
+  .action-gradient {
+    background: var(--gradient-action);
+  }
+  
+  .card-gradient {
+    background: var(--gradient-card);
+  }
+  
+  .shadow-transport {
+    box-shadow: var(--shadow-card);
+  }
+  
+  .shadow-transport-elevated {
+    box-shadow: var(--shadow-elevated);
+  }
+  
+  .shadow-action {
+    box-shadow: var(--shadow-action);
+  }
+  
+  .transition-smooth {
+    transition: var(--transition-smooth);
+  }
+  
+  .transition-bounce {
+    transition: var(--transition-bounce);
+  }
+}

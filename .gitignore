@@ -1,0 +1,63 @@
+# Cargo Pathway Pro - Project Specific .gitignore
+
+# Dependencies
+backend/node_modules/
+frontend/node_modules/
+
+# Environment variables
+backend/.env
+frontend/.env
+
+# Build outputs
+backend/dist/
+frontend/dist/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Cache directories
+.cache/
+backend/.cache/
+frontend/.cache/
+
+# ESLint cache
+.eslintcache
+backend/.eslintcache
+frontend/.eslintcache
+
+# OS generated files
+.DS_Store
+.DS_Store?
+Thumbs.db
+*.tmp
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Package manager files (keep npm lock files as they exist)
+# backend/package-lock.json - keeping this
+# frontend/package-lock.json - keeping this
+frontend/bun.lockb
+
+# Application specific
+backend/uploads/
+backend/sessions/
+backend/temp/
+backend/logs/
+
+# Testing
+coverage/
+*.lcov
+
+# Temporary files
+tmp/
+temp/
