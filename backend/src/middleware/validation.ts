@@ -86,6 +86,7 @@ export const validateLogin = [
 // Booking validation rules
 export const validateCreateBooking = [
   body('customerId')
+    .optional()
     .isMongoId()
     .withMessage('Invalid customer ID'),
   

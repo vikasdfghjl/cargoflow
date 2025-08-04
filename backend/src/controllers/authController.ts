@@ -1,7 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import User, { IUser } from '../models/User';
+import AuthService from '../services/AuthService';
 import { ApiResponse, AuthRequest } from '../types';
 import { 
   asyncHandler, 
@@ -25,14 +23,6 @@ import {
 // Extend Request interface for authenticated routes
 interface AuthenticatedRequest extends AuthRequest {}
 
-const generateToken = (userId: string, userType: string): string => {
-  return jwt.sign(
-    { userId, userType },
-    process.env.JWT_SECRET!,
-    { expiresIn: '7d' }
-  );
-};
-
 export const register = asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const { firstName, lastName, email, password, phone, userType, companyName } = req.body;
 
@@ -48,50 +38,20 @@ export const register = asyncHandler(async (req: Request, res: Response, next: N
     throw new ValidationError('User type must be either customer or admin');
   }
 
-  // Check if user already exists
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    throw new ConflictError(ERROR_MESSAGES.USER_EXISTS);
-  }
-
-  // Hash password
-  const saltRounds = 12;
-  const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-  // Create new user
-  const user = new User({
+  // Use AuthService to register user
+  const result = await AuthService.registerUser({
     firstName,
     lastName,
     email,
-    password: hashedPassword,
+    password,
     phone,
     userType,
-    companyName: userType === 'customer' ? companyName : undefined,
-    isActive: true,
-    isEmailVerified: false
+    companyName
   });
 
-  await user.save();
-
-  // Generate token
-  const token = generateToken((user._id as string).toString(), user.userType);
-
-  // Return user data without password
-  const userResponse = {
-    id: (user._id as string).toString(),
-    firstName: user.firstName,
-    lastName: user.lastName,
-    email: user.email,
-    phone: user.phone,
-    userType: user.userType,
-    companyName: user.companyName,
-    isActive: user.isActive,
-    createdAt: user.createdAt
-  };
-
   sendCreatedResponse(res, RESPONSE_MESSAGES.REGISTRATION_SUCCESS, {
-    user: userResponse,
-    token
+    user: result.user,
+    token: result.token
   });
 });
 
@@ -101,47 +61,12 @@ export const login = asyncHandler(async (req: Request, res: Response, next: Next
   // Validate required fields
   validateRequired({ email, password });
 
-  // Find user by email
-  const user = await User.findOne({ email }).select('+password');
-  if (!user) {
-    throw new AuthenticationError(ERROR_MESSAGES.INVALID_CREDENTIALS);
-  }
-
-  // Check if user is active
-  if (!user.isActive) {
-    throw new AuthenticationError(ERROR_MESSAGES.ACCOUNT_DEACTIVATED);
-  }
-
-  // Verify password
-  const isPasswordValid = await bcrypt.compare(password, user.password);
-  if (!isPasswordValid) {
-    throw new AuthenticationError(ERROR_MESSAGES.INVALID_CREDENTIALS);
-  }
-
-  // Update last login
-  user.lastLogin = new Date();
-  await user.save();
-
-  // Generate token
-  const token = generateToken((user._id as string).toString(), user.userType);
-
-  // Return user data without password
-  const userResponse = {
-    id: (user._id as string).toString(),
-    firstName: user.firstName,
-    lastName: user.lastName,
-    email: user.email,
-    phone: user.phone,
-    userType: user.userType,
-    companyName: user.companyName,
-    isActive: user.isActive,
-    lastLogin: user.lastLogin,
-    createdAt: user.createdAt
-  };
+  // Use AuthService to login user
+  const result = await AuthService.loginUser({ email, password });
 
   sendSuccessResponse(res, RESPONSE_MESSAGES.LOGIN_SUCCESS, {
-    user: userResponse,
-    token
+    user: result.user,
+    token: result.token
   });
 });
 
@@ -158,23 +83,7 @@ export const getProfile = asyncHandler(async (req: AuthenticatedRequest, res: Re
     throw new AuthenticationError(ERROR_MESSAGES.UNAUTHORIZED);
   }
 
-  const user = await User.findById(userId);
-  if (!user) {
-    throw new NotFoundError(ERROR_MESSAGES.USER_NOT_FOUND);
-  }
+  const user = await AuthService.getUserProfile(userId);
 
-  const userResponse = {
-    id: (user._id as string).toString(),
-    firstName: user.firstName,
-    lastName: user.lastName,
-    email: user.email,
-    phone: user.phone,
-    userType: user.userType,
-    companyName: user.companyName,
-    isActive: user.isActive,
-    lastLogin: user.lastLogin,
-    createdAt: user.createdAt
-  };
-
-  sendSuccessResponse(res, RESPONSE_MESSAGES.RETRIEVED, userResponse);
+  sendSuccessResponse(res, RESPONSE_MESSAGES.RETRIEVED, user);
 });

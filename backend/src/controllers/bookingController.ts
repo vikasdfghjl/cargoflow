@@ -59,6 +59,14 @@ export const createBooking = asyncHandler(async (req: AuthRequest, res: Response
   const bookingData = req.body;
   console.log('Received booking data:', JSON.stringify(bookingData, null, 2));
   
+  // For customers, automatically set customerId to their own user ID
+  // For admins, they can specify customerId or it defaults to their own ID
+  if (req.user?.userType === 'customer') {
+    bookingData.customerId = userId;
+  } else if (req.user?.userType === 'admin' && !bookingData.customerId) {
+    bookingData.customerId = userId;
+  }
+  
   // Validate required fields
   validateRequired({
     customerId: bookingData.customerId,
@@ -362,7 +370,7 @@ export const getBookingById = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    const { bookingId } = req.params;
+    const { id: bookingId } = req.params;
 
     // Find booking by ID and ensure it belongs to the user
     const booking = await Booking.findOne({
@@ -462,15 +470,8 @@ export const getUserBookings = async (req: AuthRequest, res: Response): Promise<
 // Admin function: Get all bookings
 export const getAllBookings = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userType = req.user?.userType;
-    if (userType !== 'admin') {
-      res.status(403).json({
-        success: false,
-        message: 'Admin access required'
-      } as ApiResponse);
-      return;
-    }
-
+    // Admin access is now handled by middleware, so no need to check again
+    
     // Get query parameters
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
@@ -546,7 +547,7 @@ export const updateBookingStatus = async (req: AuthRequest, res: Response): Prom
       return;
     }
 
-    const { bookingId } = req.params;
+    const { id: bookingId } = req.params;
     const { status, driverId, notes } = req.body;
 
     // Validate status

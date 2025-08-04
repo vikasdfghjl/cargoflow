@@ -11,7 +11,7 @@ import {
   getAllBookings,
   updateBookingStatus
 } from '../controllers/bookingController';
-import { authenticate } from '../middleware/auth';
+import { authenticate, authorize } from '../middleware/auth';
 import { 
   validateCreateBooking,
   validateMongoId,
@@ -27,9 +27,10 @@ router.use(authenticate);
 // Booking operations
 router.post('/', validateCreateBooking, createBooking);
 router.get('/', validatePagination, getUserBookings);
-router.get('/all-bookings', validatePagination, getAllBookings);
+router.get('/admin/all', authorize('admin'), validatePagination, getAllBookings);
 router.get('/:id', validateMongoId, getBookingById);
 router.patch('/:id/status', validateMongoId, validateUpdateBookingStatus, updateBookingStatus);
+router.patch('/admin/:id/status', authorize('admin'), validateMongoId, validateUpdateBookingStatus, updateBookingStatus);
 
 // Draft operations
 router.post('/draft', validateCreateBooking, saveDraft);
