@@ -11,6 +11,9 @@ import errorHandler from './middleware/errorHandler';
 import authRoutes from './routes/auth';
 import addressRoutes from './routes/address';
 import bookingRoutes from './routes/booking';
+import adminRoutes from './routes/admin';
+import invoiceRoutes from './routes/invoice';
+import customerRoutes from './routes/customer';
 
 // Load environment variables
 dotenv.config();
@@ -142,6 +145,9 @@ const apiVersion = process.env.API_VERSION || 'v1';
 app.use(`/api/${apiVersion}/auth`, authLimiter, authRoutes);
 app.use(`/api/${apiVersion}/addresses`, addressRoutes);
 app.use(`/api/${apiVersion}/bookings`, bookingRoutes);
+app.use(`/api/${apiVersion}/admin`, adminRoutes);
+app.use(`/api/${apiVersion}/invoices`, invoiceRoutes);
+app.use(`/api/${apiVersion}/customer`, customerRoutes);
 
 // 404 handler for unmatched routes
 app.use('*', (req, res) => {

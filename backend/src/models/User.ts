@@ -9,6 +9,8 @@ export interface IUser extends Document {
   phone?: string;
   userType: 'customer' | 'admin';
   companyName?: string;
+  companyAddress?: string;
+  businessType?: string;
   isActive: boolean;
   isEmailVerified: boolean;
   lastLogin?: Date;
@@ -61,6 +63,17 @@ const userSchema = new Schema<IUser>({
     type: String,
     trim: true,
     maxlength: [100, 'Company name cannot exceed 100 characters']
+  },
+  companyAddress: {
+    type: String,
+    trim: true,
+    maxlength: [200, 'Company address cannot exceed 200 characters']
+  },
+  businessType: {
+    type: String,
+    trim: true,
+    enum: ['manufacturer', 'distributor', 'retailer', 'importer', 'exporter', 'logistics', 'other'],
+    lowercase: true
   },
   isActive: {
     type: Boolean,

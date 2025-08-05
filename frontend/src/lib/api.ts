@@ -145,6 +145,16 @@ export const authApi = {
   },
 };
 
+// Address interface for reuse
+export interface Address {
+  address: string;
+  contactName: string;
+  phone: string;
+  city: string;
+  postalCode: string;
+  instructions?: string;
+}
+
 // Booking types
 export interface Booking {
   _id: string;
@@ -155,22 +165,8 @@ export interface Booking {
     lastName: string;
     email: string;
   };
-  pickupAddress: {
-    address: string;
-    contactName: string;
-    phone: string;
-    city: string;
-    postalCode: string;
-    instructions?: string;
-  };
-  deliveryAddress: {
-    address: string;
-    contactName: string;
-    phone: string;
-    city: string;
-    postalCode: string;
-    instructions?: string;
-  };
+  pickupAddress: Address;
+  deliveryAddress: Address;
   packageType: 'document' | 'package' | 'fragile' | 'bulk';
   weight: number;
   dimensions?: {
@@ -225,22 +221,8 @@ export interface AdminBookingsResponse extends BookingsResponse {
 }
 
 export interface CreateBookingRequest {
-  pickupAddress: {
-    address: string;
-    contactName: string;
-    phone: string;
-    city: string;
-    postalCode: string;
-    instructions?: string;
-  };
-  deliveryAddress: {
-    address: string;
-    contactName: string;
-    phone: string;
-    city: string;
-    postalCode: string;
-    instructions?: string;
-  };
+  pickupAddress: Address;
+  deliveryAddress: Address;
   packageType: 'document' | 'package' | 'fragile' | 'bulk';
   weight: number;
   dimensions?: {
@@ -336,6 +318,451 @@ export const bookingApi = {
     }
 
     throw new ApiError(400, response.message || 'Failed to create booking');
+  },
+};
+
+// Admin API interfaces
+export interface Customer {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  companyName?: string;
+  companyAddress?: string;
+  businessType?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  totalBookings: number;
+  activeBookings: number;
+}
+
+export interface CustomerDetails extends Customer {
+  statistics: {
+    totalBookings: number;
+    completedBookings: number;
+    cancelledBookings: number;
+    activeBookings: number;
+    totalRevenue: number;
+  };
+  recentBookings: Array<{
+    id: string;
+    bookingNumber: string;
+    status: string;
+    totalCost: number;
+    pickupDate: string;
+    createdAt: string;
+    pickupAddress: Address;
+    deliveryAddress: Address;
+  }>;
+}
+
+export interface CustomersResponse {
+  customers: Customer[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalCustomers: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
+export interface UpdateCustomerRequest {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  companyName?: string;
+  companyAddress?: string;
+  businessType?: string;
+  isActive: boolean;
+}
+
+// Invoice interfaces
+export interface InvoiceItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+  bookingId?: string;
+}
+
+export interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  customer: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    companyName?: string;
+    phone?: string;
+    companyAddress?: string;
+  };
+  bookings?: Array<{
+    _id: string;
+    bookingNumber: string;
+    status: string;
+    totalCost: number;
+  }>;
+  invoiceDate: string;
+  dueDate: string;
+  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+  items: InvoiceItem[];
+  subtotal: number;
+  taxRate: number;
+  taxAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  notes?: string;
+  paymentTerms: string;
+  sentAt?: string;
+  paidAt?: string;
+  paymentMethod?: string;
+  createdAt: string;
+  updatedAt: string;
+  bookingCount?: number;
+}
+
+export interface InvoicesResponse {
+  invoices: Invoice[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalInvoices: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
+export interface CreateInvoiceRequest {
+  customerId: string;
+  bookingIds?: string[];
+  dueDate: string;
+  items: InvoiceItem[];
+  taxRate?: number;
+  discountAmount?: number;
+  notes?: string;
+  paymentTerms?: string;
+}
+
+export interface UpdateInvoiceRequest {
+  dueDate?: string;
+  items?: InvoiceItem[];
+  taxRate?: number;
+  discountAmount?: number;
+  notes?: string;
+  paymentTerms?: string;
+  status?: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+}
+
+export interface GenerateInvoiceFromBookingsRequest {
+  customerId: string;
+  bookingIds: string[];
+  dueDate: string;
+  taxRate?: number;
+  discountAmount?: number;
+  notes?: string;
+}
+
+export interface InvoiceStats {
+  total: number;
+  draft: number;
+  sent: number;
+  paid: number;
+  overdue: number;
+  cancelled: number;
+  totalRevenue: number;
+  monthlyRevenue: Array<{
+    _id: number;
+    revenue: number;
+    invoices: number;
+  }>;
+}
+
+export interface DashboardStats {
+  customers: {
+    total: number;
+    active: number;
+    inactive: number;
+  };
+  bookings: {
+    total: number;
+    pending: number;
+    inTransit: number;
+    completed: number;
+  };
+  revenue: {
+    total: number;
+    monthly: Array<{
+      _id: number;
+      revenue: number;
+      bookings: number;
+    }>;
+  };
+}
+
+// Admin API functions
+export const adminApi = {
+  async getAllCustomers(params: {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+    status?: 'active' | 'inactive';
+    search?: string;
+  } = {}): Promise<CustomersResponse> {
+    const queryParams = new URLSearchParams();
+    
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== '') {
+        queryParams.append(key, value.toString());
+      }
+    });
+
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/admin/customers?${queryString}` : '/admin/customers';
+    
+    const response = await apiRequest<CustomersResponse>(endpoint, {
+      method: 'GET',
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to fetch customers');
+  },
+
+  async getCustomerDetails(customerId: string): Promise<CustomerDetails> {
+    const response = await apiRequest<CustomerDetails>(`/admin/customers/${customerId}`, {
+      method: 'GET',
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to fetch customer details');
+  },
+
+  async updateCustomerStatus(customerId: string, isActive: boolean): Promise<Customer> {
+    const response = await apiRequest<Customer>(`/admin/customers/${customerId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isActive }),
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to update customer status');
+  },
+
+  async updateCustomer(customerId: string, updateData: UpdateCustomerRequest): Promise<Customer> {
+    const response = await apiRequest<Customer>(`/admin/customers/${customerId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updateData),
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to update customer details');
+  },
+
+  async getDashboardStats(): Promise<DashboardStats> {
+    const response = await apiRequest<DashboardStats>('/admin/dashboard/stats', {
+      method: 'GET',
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to fetch dashboard statistics');
+  },
+
+  async getCustomerBookings(customerId: string, params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+  } = {}): Promise<BookingsResponse> {
+    const queryParams = new URLSearchParams();
+    
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== '') {
+        queryParams.append(key, value.toString());
+      }
+    });
+
+    const queryString = queryParams.toString();
+    const endpoint = queryString 
+      ? `/admin/customers/${customerId}/bookings?${queryString}` 
+      : `/admin/customers/${customerId}/bookings`;
+    
+    const response = await apiRequest<BookingsResponse>(endpoint, {
+      method: 'GET',
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to fetch customer bookings');
+  },
+};
+
+// Invoice API functions
+export const invoiceApi = {
+  async getAllInvoices(params: {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+    status?: string;
+    customerId?: string;
+    search?: string;
+  } = {}): Promise<InvoicesResponse> {
+    const queryParams = new URLSearchParams();
+    
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== '') {
+        queryParams.append(key, value.toString());
+      }
+    });
+
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/invoices?${queryString}` : '/invoices';
+    
+    const response = await apiRequest<InvoicesResponse>(endpoint, {
+      method: 'GET',
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to fetch invoices');
+  },
+
+  async getInvoiceDetails(invoiceId: string): Promise<Invoice> {
+    const response = await apiRequest<Invoice>(`/invoices/${invoiceId}`, {
+      method: 'GET',
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to fetch invoice details');
+  },
+
+  async createInvoice(invoiceData: CreateInvoiceRequest): Promise<Invoice> {
+    const response = await apiRequest<Invoice>('/invoices', {
+      method: 'POST',
+      body: JSON.stringify(invoiceData),
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to create invoice');
+  },
+
+  async updateInvoice(invoiceId: string, updateData: UpdateInvoiceRequest): Promise<Invoice> {
+    const response = await apiRequest<Invoice>(`/invoices/${invoiceId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updateData),
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to update invoice');
+  },
+
+  async generateInvoiceFromBookings(invoiceData: GenerateInvoiceFromBookingsRequest): Promise<Invoice> {
+    const response = await apiRequest<Invoice>('/invoices/generate-from-bookings', {
+      method: 'POST',
+      body: JSON.stringify(invoiceData),
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to generate invoice from bookings');
+  },
+
+  async deleteInvoice(invoiceId: string): Promise<void> {
+    const response = await apiRequest<void>(`/invoices/${invoiceId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.success) {
+      throw new ApiError(400, response.message || 'Failed to delete invoice');
+    }
+  },
+
+  async getInvoiceStats(): Promise<InvoiceStats> {
+    const response = await apiRequest<InvoiceStats>('/invoices/stats', {
+      method: 'GET',
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to fetch invoice statistics');
+  },
+};
+
+// Customer API functions
+export const customerApi = {
+  async getMyInvoices(params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    search?: string;
+  } = {}): Promise<InvoicesResponse> {
+    const queryParams = new URLSearchParams();
+    
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== '') {
+        queryParams.append(key, value.toString());
+      }
+    });
+
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/customer/invoices?${queryString}` : '/customer/invoices';
+    
+    const response = await apiRequest<InvoicesResponse>(endpoint, {
+      method: 'GET',
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to fetch customer invoices');
+  },
+
+  async getInvoiceDetails(invoiceId: string): Promise<Invoice> {
+    const response = await apiRequest<Invoice>(`/customer/invoices/${invoiceId}`, {
+      method: 'GET',
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to fetch invoice details');
   },
 };
 
