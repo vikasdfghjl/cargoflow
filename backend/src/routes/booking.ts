@@ -9,11 +9,13 @@ import {
   getUserBookings,
   getBookingById,
   getAllBookings,
-  updateBookingStatus
+  updateBookingStatus,
+  deleteBooking
 } from '../controllers/bookingController';
 import { authenticate, authorize } from '../middleware/auth';
 import { 
   validateCreateBooking,
+  validateDraftBooking,
   validateMongoId,
   validatePagination,
   validateUpdateBookingStatus
@@ -29,14 +31,15 @@ router.post('/', validateCreateBooking, createBooking);
 router.get('/', validatePagination, getUserBookings);
 router.get('/admin/all', authorize('admin'), validatePagination, getAllBookings);
 router.get('/:id', validateMongoId, getBookingById);
+router.delete('/:id', validateMongoId, deleteBooking);
 router.patch('/:id/status', validateMongoId, validateUpdateBookingStatus, updateBookingStatus);
 router.patch('/admin/:id/status', authorize('admin'), validateMongoId, validateUpdateBookingStatus, updateBookingStatus);
 
 // Draft operations
-router.post('/draft', validateCreateBooking, saveDraft);
+router.post('/draft', validateDraftBooking, saveDraft);
 router.get('/drafts', validatePagination, getUserDrafts);
 router.get('/draft/:sessionId', getDraft);
 router.delete('/draft/:sessionId', deleteDraft);
-router.put('/draft/:sessionId', validateCreateBooking, autoSaveDraft);
+router.put('/draft/:sessionId', validateDraftBooking, autoSaveDraft);
 
 export default router;

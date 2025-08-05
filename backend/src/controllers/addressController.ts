@@ -11,7 +11,7 @@ export const getAddresses = async (req: AuthRequest, res: Response): Promise<voi
       .sort({ isDefault: -1, createdAt: -1 });
 
     const addressResponse = addresses.map(address => ({
-      id: address._id.toString(),
+      _id: address._id.toString(), // Changed from 'id' to '_id' to match frontend interface
       label: address.label,
       type: address.type,
       contactName: address.contactName,
@@ -24,7 +24,8 @@ export const getAddresses = async (req: AuthRequest, res: Response): Promise<voi
       isDefault: address.isDefault,
       landmark: address.landmark,
       instructions: address.instructions,
-      createdAt: address.createdAt
+      createdAt: address.createdAt,
+      updatedAt: address.updatedAt
     }));
 
     res.status(200).json({
@@ -89,7 +90,7 @@ export const createAddress = async (req: AuthRequest, res: Response): Promise<vo
     await address.save();
 
     const addressResponse = {
-      id: address._id.toString(),
+      _id: address._id.toString(), // Changed from 'id' to '_id'
       label: address.label,
       type: address.type,
       contactName: address.contactName,
@@ -102,7 +103,8 @@ export const createAddress = async (req: AuthRequest, res: Response): Promise<vo
       isDefault: address.isDefault,
       landmark: address.landmark,
       instructions: address.instructions,
-      createdAt: address.createdAt
+      createdAt: address.createdAt,
+      updatedAt: address.updatedAt
     };
 
     res.status(201).json({
@@ -125,7 +127,7 @@ export const createAddress = async (req: AuthRequest, res: Response): Promise<vo
 export const updateAddress = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
-    const { addressId } = req.params;
+    const { id } = req.params; // Changed from addressId to id
     const {
       label,
       type,
@@ -142,7 +144,7 @@ export const updateAddress = async (req: AuthRequest, res: Response): Promise<vo
     } = req.body;
 
     // Find the address and ensure it belongs to the user
-    const address = await Address.findOne({ _id: addressId, userId });
+    const address = await Address.findOne({ _id: id, userId }); // Changed from addressId to id
     if (!address) {
       res.status(404).json({
         success: false,
@@ -154,7 +156,7 @@ export const updateAddress = async (req: AuthRequest, res: Response): Promise<vo
     // If this is set as default, remove default from others
     if (isDefault && !address.isDefault) {
       await Address.updateMany(
-        { userId, _id: { $ne: addressId } },
+        { userId, _id: { $ne: id } }, // Changed from addressId to id
         { isDefault: false }
       );
     }
@@ -176,7 +178,7 @@ export const updateAddress = async (req: AuthRequest, res: Response): Promise<vo
     await address.save();
 
     const addressResponse = {
-      id: address._id.toString(),
+      _id: address._id.toString(), // Changed from 'id' to '_id'
       label: address.label,
       type: address.type,
       contactName: address.contactName,
@@ -189,7 +191,8 @@ export const updateAddress = async (req: AuthRequest, res: Response): Promise<vo
       isDefault: address.isDefault,
       landmark: address.landmark,
       instructions: address.instructions,
-      createdAt: address.createdAt
+      createdAt: address.createdAt,
+      updatedAt: address.updatedAt
     };
 
     res.status(200).json({
@@ -212,10 +215,10 @@ export const updateAddress = async (req: AuthRequest, res: Response): Promise<vo
 export const deleteAddress = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
-    const { addressId } = req.params;
+    const { id } = req.params; // Changed from addressId to id
 
     // Find and delete the address
-    const address = await Address.findOneAndDelete({ _id: addressId, userId });
+    const address = await Address.findOneAndDelete({ _id: id, userId }); // Changed from addressId to id
     if (!address) {
       res.status(404).json({
         success: false,
@@ -252,10 +255,10 @@ export const deleteAddress = async (req: AuthRequest, res: Response): Promise<vo
 export const setDefaultAddress = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
-    const { addressId } = req.params;
+    const { id } = req.params; // Changed from addressId to id
 
     // Find the address and ensure it belongs to the user
-    const address = await Address.findOne({ _id: addressId, userId });
+    const address = await Address.findOne({ _id: id, userId }); // Changed from addressId to id
     if (!address) {
       res.status(404).json({
         success: false,
@@ -266,7 +269,7 @@ export const setDefaultAddress = async (req: AuthRequest, res: Response): Promis
 
     // Remove default from all other addresses
     await Address.updateMany(
-      { userId, _id: { $ne: addressId } },
+      { userId, _id: { $ne: id } }, // Changed from addressId to id
       { isDefault: false }
     );
 

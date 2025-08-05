@@ -319,6 +319,18 @@ export const bookingApi = {
 
     throw new ApiError(400, response.message || 'Failed to create booking');
   },
+
+  async deleteBooking(bookingId: string): Promise<void> {
+    const response = await apiRequest<void>(`/bookings/${bookingId}`, {
+      method: 'DELETE',
+    });
+
+    if (response.success) {
+      return;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to delete booking');
+  },
 };
 
 // Admin API interfaces

@@ -39,6 +39,8 @@ export interface DraftData {
 }
 
 class StatelessBookingService {
+  private currentDraftId: string | null = null; // Track current draft ID for auto-save
+
   private getAuthHeaders(): Record<string, string> {
     const token = localStorage.getItem('authToken');
     return {
@@ -55,6 +57,16 @@ class StatelessBookingService {
     }
     
     return data.data as T;
+  }
+
+  // Get the current draft ID
+  getCurrentDraftId(): string | null {
+    return this.currentDraftId;
+  }
+
+  // Set the current draft ID (for components to update tracking)
+  setCurrentDraftId(draftId: string | null): void {
+    this.currentDraftId = draftId;
   }
 
   // Create a new booking with optimized async/await
@@ -77,8 +89,8 @@ class StatelessBookingService {
   async saveDraft(draftData: DraftData, draftId?: string): Promise<{ draftId: string }> {
     try {
       const url = draftId 
-        ? `${API_BASE_URL}/bookings/drafts/${draftId}`
-        : `${API_BASE_URL}/bookings/drafts`;
+        ? `${API_BASE_URL}/bookings/draft/${draftId}` // Fixed: /draft/ instead of /drafts/
+        : `${API_BASE_URL}/bookings/draft`; // Fixed: /draft instead of /drafts
       
       const method = draftId ? 'PUT' : 'POST';
       
@@ -88,7 +100,12 @@ class StatelessBookingService {
         body: JSON.stringify(draftData),
       });
       
-      return await this.handleResponse(response);
+      const result = await this.handleResponse(response) as { draftId: string };
+      
+      // Update current draft ID for auto-save tracking
+      this.currentDraftId = result.draftId;
+      
+      return result;
     } catch (error) {
       console.error('Save draft service error:', error);
       throw error;
@@ -97,7 +114,7 @@ class StatelessBookingService {
 
   // Get specific draft
   async getDraft(draftId: string): Promise<DraftData> {
-    const response = await fetch(`${API_BASE_URL}/bookings/drafts/${draftId}`, {
+    const response = await fetch(`${API_BASE_URL}/bookings/draft/${draftId}`, { // Fixed: /draft/ instead of /drafts/
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -107,7 +124,7 @@ class StatelessBookingService {
 
   // Get all user drafts
   async getUserDrafts(): Promise<BookingDraft[]> {
-    const response = await fetch(`${API_BASE_URL}/bookings/drafts`, {
+    const response = await fetch(`${API_BASE_URL}/bookings/drafts`, { // This one stays /drafts
       method: 'GET',
       headers: this.getAuthHeaders(),
     });
@@ -117,7 +134,7 @@ class StatelessBookingService {
 
   // Delete draft
   async deleteDraft(draftId: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/bookings/drafts/${draftId}`, {
+    const response = await fetch(`${API_BASE_URL}/bookings/draft/${draftId}`, { // Fixed: /draft/ instead of /drafts/
       method: 'DELETE',
       headers: this.getAuthHeaders(),
     });
@@ -125,15 +142,19 @@ class StatelessBookingService {
     await this.handleResponse(response);
   }
 
-  // Auto-save draft (for real-time saving)
-  async autoSaveDraft(partialData: Partial<DraftData>): Promise<{ draftId: string; lastSaved: Date }> {
-    const response = await fetch(`${API_BASE_URL}/bookings/drafts/autosave`, {
-      method: 'PATCH',
+  // Auto-save draft (for real-time saving) - Fixed to use proper endpoint
+  async autoSaveDraft(draftData: DraftData, draftId: string): Promise<{ draftId: string; lastSaved: Date }> {
+    const response = await fetch(`${API_BASE_URL}/bookings/draft/${draftId}`, { // Fixed: use /draft/:sessionId
+      method: 'PUT', // Fixed: use PUT instead of PATCH
       headers: this.getAuthHeaders(),
-      body: JSON.stringify(partialData),
+      body: JSON.stringify(draftData), // Fixed: send full draftData instead of partialData
     });
     
-    return this.handleResponse(response);
+    const result = await this.handleResponse(response) as { draftId?: string }; // Fixed: type assertion
+    return {
+      draftId: result.draftId || draftId, // Fallback to provided draftId
+      lastSaved: new Date()
+    };
   }
 
   // Get user bookings
@@ -169,7 +190,7 @@ export class DraftAutoSaver {
   }
 
   // Auto-save with debouncing
-  autoSave(data: Partial<DraftData>): Promise<{ draftId: string; lastSaved: Date }> {
+  autoSave(data: Partial<DraftData>, draftId?: string): Promise<{ draftId: string; lastSaved: Date }> {
     return new Promise((resolve, reject) => {
       // Clear existing timer
       if (this.timer) {
@@ -179,8 +200,18 @@ export class DraftAutoSaver {
       // Set new timer
       this.timer = setTimeout(async () => {
         try {
-          const result = await statelessBookingService.autoSaveDraft(data);
-          resolve(result);
+          if (draftId) {
+            // Auto-save existing draft
+            const result = await statelessBookingService.autoSaveDraft(data as DraftData, draftId);
+            resolve(result);
+          } else {
+            // Create new draft if no draftId provided
+            const result = await statelessBookingService.saveDraft(data as DraftData);
+            resolve({
+              draftId: result.draftId,
+              lastSaved: new Date()
+            });
+          }
         } catch (error) {
           reject(error);
         }

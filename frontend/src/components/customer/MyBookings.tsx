@@ -17,10 +17,14 @@ import {
   Truck,
   CheckCircle,
   AlertCircle,
-  Loader
+  Loader,
+  Loader2,
+  Trash2
 } from "lucide-react";
-import { bookingApi, type BookingsResponse } from "@/lib/api";
+import { bookingApi, customerApi, type BookingsResponse, type Invoice } from "@/lib/api";
 import type { Booking } from "@/types/booking";
+import { generateInvoicePDF } from "@/utils/invoicePDFGenerator";
+import InvoicePreviewDialog from "./InvoicePreviewDialog";
 
 const MyBookings = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -35,6 +39,16 @@ const MyBookings = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // New state for button functionalities
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [showBookingDetails, setShowBookingDetails] = useState(false);
+  const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [bookingToDelete, setBookingToDelete] = useState<Booking | null>(null);
 
   // Fetch bookings from API
   const fetchBookings = async (page = 1, status = statusFilter) => {
@@ -136,6 +150,166 @@ const MyBookings = () => {
 
   const formatCost = (cost: number) => {
     return `₹${cost}`;
+  };
+
+  // View booking details
+  const viewBookingDetails = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setShowBookingDetails(true);
+  };
+
+  // View invoice for a booking
+  const viewInvoice = async (booking: Booking) => {
+    try {
+      // First get all customer invoices
+      const invoicesResponse = await customerApi.getMyInvoices();
+      
+      // Find invoice that contains this booking ID
+      const invoice = invoicesResponse.invoices.find(inv => 
+        inv.bookings && inv.bookings.some(bookingData => bookingData._id === booking._id)
+      );
+      
+      if (invoice) {
+        // Get full invoice details
+        const fullInvoice = await customerApi.getInvoiceDetails(invoice.id);
+        setPreviewInvoice(fullInvoice);
+        setPreviewOpen(true);
+      } else {
+        setError('No invoice found for this booking');
+        setTimeout(() => setError(null), 3000);
+      }
+    } catch (err) {
+      console.error('Error fetching invoice:', err);
+      setError('Failed to fetch invoice details');
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  // Download booking document or invoice
+  const downloadDocument = async (booking: Booking) => {
+    try {
+      setDownloadingId(booking._id);
+      
+      if (booking.status === 'delivered') {
+        // Try to download invoice if booking is delivered
+        const invoicesResponse = await customerApi.getMyInvoices();
+        const invoice = invoicesResponse.invoices.find(inv => 
+          inv.bookings && inv.bookings.some(bookingData => bookingData._id === booking._id)
+        );
+        
+        if (invoice) {
+          const fullInvoice = await customerApi.getInvoiceDetails(invoice.id);
+          
+          // Company information for the PDF header
+          const companyOptions = {
+            companyName: 'Cargo Pathway Pro',
+            companyAddress: '123 Logistics Avenue\nTransport City, TC 12345\nUnited States',
+            companyPhone: '+1 (555) 123-4567',
+            companyEmail: 'billing@cargopathwaypro.com'
+          };
+
+          // Generate and download PDF
+          generateInvoicePDF(fullInvoice, companyOptions, true);
+        } else {
+          // Generate booking receipt if no invoice found
+          generateBookingReceipt(booking);
+        }
+      } else {
+        // Generate booking receipt for non-delivered bookings
+        generateBookingReceipt(booking);
+      }
+      
+    } catch (err) {
+      console.error('Error downloading document:', err);
+      setError('Failed to generate document. Please try again.');
+      setTimeout(() => setError(null), 3000);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  // Generate a simple booking receipt (placeholder - you may want to create a proper PDF generator)
+  const generateBookingReceipt = (booking: Booking) => {
+    const content = `
+BOOKING RECEIPT
+===================
+Booking Number: ${booking.bookingNumber}
+Date: ${formatDate(booking.createdAt)}
+Status: ${booking.status.toUpperCase()}
+
+PICKUP ADDRESS:
+${booking.pickupAddress.contactName}
+${booking.pickupAddress.address}
+${booking.pickupAddress.city}
+Phone: ${booking.pickupAddress.phone}
+
+DELIVERY ADDRESS:
+${booking.deliveryAddress.contactName}
+${booking.deliveryAddress.address}
+${booking.deliveryAddress.city}
+Phone: ${booking.deliveryAddress.phone}
+
+PACKAGE DETAILS:
+Type: ${booking.packageType}
+Weight: ${booking.weight} kg
+Service: ${booking.serviceType}
+${booking.insurance ? `Insurance: ₹${booking.insuranceValue}` : ''}
+
+TOTAL COST: ₹${booking.totalCost}
+
+${booking.specialInstructions ? `Special Instructions: ${booking.specialInstructions}` : ''}
+    `;
+
+    // Create and download text file
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `booking-${booking.bookingNumber}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Handle delete booking request
+  const handleDeleteBooking = (booking: Booking) => {
+    setBookingToDelete(booking);
+    setShowDeleteConfirm(true);
+  };
+
+  // Confirm delete booking
+  const confirmDeleteBooking = async () => {
+    if (!bookingToDelete) return;
+    
+    try {
+      setDeletingId(bookingToDelete._id);
+      await bookingApi.deleteBooking(bookingToDelete._id);
+      
+      // Refresh bookings list
+      await fetchBookings(pagination.currentPage, statusFilter);
+      
+      setShowDeleteConfirm(false);
+      setBookingToDelete(null);
+      
+      // Show success message briefly
+      setError(null);
+      const successMessage = `Booking ${bookingToDelete.bookingNumber} deleted successfully`;
+      setError(successMessage);
+      setTimeout(() => setError(null), 3000);
+    } catch (err) {
+      console.error('Error deleting booking:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete booking');
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // Cancel delete booking
+  const cancelDeleteBooking = () => {
+    setShowDeleteConfirm(false);
+    setBookingToDelete(null);
   };
 
   // Client-side filtering for search functionality
@@ -349,19 +523,55 @@ const MyBookings = () => {
                   </div>
                   
                   <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" className="flex items-center space-x-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex items-center space-x-2"
+                      onClick={() => viewBookingDetails(booking)}
+                    >
                       <Eye className="h-4 w-4" />
                       <span>View Details</span>
                     </Button>
                     {booking.status === 'delivered' && (
-                      <Button variant="outline" size="sm" className="flex items-center space-x-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex items-center space-x-2"
+                        onClick={() => viewInvoice(booking)}
+                      >
                         <FileText className="h-4 w-4" />
                         <span>View Invoice</span>
                       </Button>
                     )}
-                    <Button variant="action" size="sm" className="flex items-center space-x-2">
-                      <Download className="h-4 w-4" />
-                      <span>Download</span>
+                    {booking.status === 'pending' && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex items-center space-x-2 text-red-600 border-red-300 hover:bg-red-50"
+                        onClick={() => handleDeleteBooking(booking)}
+                        disabled={deletingId === booking._id}
+                      >
+                        {deletingId === booking._id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                        <span>{deletingId === booking._id ? 'Deleting...' : 'Delete'}</span>
+                      </Button>
+                    )}
+                    <Button 
+                      variant="action" 
+                      size="sm" 
+                      className="flex items-center space-x-2"
+                      onClick={() => downloadDocument(booking)}
+                      disabled={downloadingId === booking._id}
+                    >
+                      {downloadingId === booking._id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                      <span>{downloadingId === booking._id ? 'Generating...' : 'Download'}</span>
                     </Button>
                   </div>
                 </div>
@@ -422,6 +632,169 @@ const MyBookings = () => {
             <p className="text-neutral-500">Try adjusting your search or filter criteria</p>
           </CardContent>
         </Card>
+      )}
+      
+      {/* Booking Details Dialog */}
+      {showBookingDetails && selectedBooking && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">Booking Details</h2>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowBookingDetails(false)}
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  Close
+                </Button>
+              </div>
+              
+              <div className="space-y-6">
+                {/* Booking Information */}
+                <div>
+                  <h3 className="font-semibold mb-2">Booking Information</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-neutral-600">Booking Number:</span>
+                      <p className="font-medium">{selectedBooking.bookingNumber}</p>
+                    </div>
+                    <div>
+                      <span className="text-neutral-600">Status:</span>
+                      <Badge className={getStatusColor(selectedBooking.status)}>
+                        {selectedBooking.status.replace('_', ' ').toUpperCase()}
+                      </Badge>
+                    </div>
+                    <div>
+                      <span className="text-neutral-600">Service Type:</span>
+                      <p className="font-medium">{selectedBooking.serviceType}</p>
+                    </div>
+                    <div>
+                      <span className="text-neutral-600">Package Type:</span>
+                      <p className="font-medium">{selectedBooking.packageType}</p>
+                    </div>
+                    <div>
+                      <span className="text-neutral-600">Weight:</span>
+                      <p className="font-medium">{formatWeight(selectedBooking.weight)}</p>
+                    </div>
+                    <div>
+                      <span className="text-neutral-600">Total Cost:</span>
+                      <p className="font-medium text-action-primary">{formatCost(selectedBooking.totalCost)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Addresses */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="font-semibold mb-2">Pickup Address</h3>
+                    <div className="bg-neutral-50 p-3 rounded text-sm">
+                      <p className="font-medium">{selectedBooking.pickupAddress.contactName}</p>
+                      <p>{selectedBooking.pickupAddress.address}</p>
+                      <p>{selectedBooking.pickupAddress.city}</p>
+                      <p>Phone: {selectedBooking.pickupAddress.phone}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Delivery Address</h3>
+                    <div className="bg-neutral-50 p-3 rounded text-sm">
+                      <p className="font-medium">{selectedBooking.deliveryAddress.contactName}</p>
+                      <p>{selectedBooking.deliveryAddress.address}</p>
+                      <p>{selectedBooking.deliveryAddress.city}</p>
+                      <p>Phone: {selectedBooking.deliveryAddress.phone}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Special Instructions */}
+                {selectedBooking.specialInstructions && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Special Instructions</h3>
+                    <p className="text-sm bg-neutral-50 p-3 rounded">{selectedBooking.specialInstructions}</p>
+                  </div>
+                )}
+
+                {/* Insurance */}
+                {selectedBooking.insurance && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Insurance</h3>
+                    <p className="text-sm">Insured for {formatCost(selectedBooking.insuranceValue || 0)}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invoice Preview Dialog */}
+      <InvoicePreviewDialog
+        invoice={previewInvoice}
+        isOpen={previewOpen}
+        onClose={() => {
+          setPreviewOpen(false);
+          setPreviewInvoice(null);
+        }}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && bookingToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center mb-4">
+              <AlertCircle className="h-6 w-6 text-red-500 mr-3" />
+              <h2 className="text-xl font-bold text-gray-900">Delete Booking</h2>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-600 mb-2">
+                Are you sure you want to delete this booking?
+              </p>
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <p className="font-medium text-gray-900">
+                  Booking: {bookingToDelete.bookingNumber}
+                </p>
+                <p className="text-sm text-gray-600">
+                  From: {bookingToDelete.pickupAddress.city} → To: {bookingToDelete.deliveryAddress.city}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Cost: {formatCost(bookingToDelete.totalCost)}
+                </p>
+              </div>
+              <p className="text-red-600 text-sm mt-2">
+                This action cannot be undone.
+              </p>
+            </div>
+            
+            <div className="flex justify-end space-x-3">
+              <Button
+                variant="outline"
+                onClick={cancelDeleteBooking}
+                disabled={deletingId === bookingToDelete._id}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmDeleteBooking}
+                disabled={deletingId === bookingToDelete._id}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {deletingId === bookingToDelete._id ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Booking
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

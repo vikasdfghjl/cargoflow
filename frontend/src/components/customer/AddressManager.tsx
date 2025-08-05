@@ -10,6 +10,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Plus, Edit, Trash2, MapPin, Phone, Star, Home, Building2, Warehouse, MapIcon } from 'lucide-react';
+import {
+  validateContactName,
+  validatePhone,
+  validatePostalCode,
+  formatPhoneForAPI,
+  formatContactNameForAPI,
+  formatPostalCodeForAPI,
+  ValidationResult
+} from '@/utils/validation';
 
 // API utility for making authenticated requests
 async function apiRequest<T>(
@@ -186,19 +195,62 @@ const AddressManager: React.FC = () => {
     setSuccess(null);
 
     try {
+      // Validate required fields
+      const contactNameValidation = validateContactName(formData.contactName);
+      if (!contactNameValidation.isValid) {
+        setError(`Contact name error: ${contactNameValidation.error}`);
+        setSubmitting(false);
+        return;
+      }
+
+      const phoneValidation = validatePhone(formData.phone);
+      if (!phoneValidation.isValid) {
+        setError(`Phone number error: ${phoneValidation.error}`);
+        setSubmitting(false);
+        return;
+      }
+
+      const postalCodeValidation = validatePostalCode(formData.zipCode);
+      if (!postalCodeValidation.isValid) {
+        setError(`Postal code error: ${postalCodeValidation.error}`);
+        setSubmitting(false);
+        return;
+      }
+
+      // Format data for API submission
+      const cleanedFormData = {
+        ...formData,
+        contactName: formatContactNameForAPI(formData.contactName),
+        phone: formatPhoneForAPI(formData.phone),
+        zipCode: formatPostalCodeForAPI(formData.zipCode),
+        street: formData.street.trim(),
+        city: formData.city.trim(),
+        state: formData.state.trim(),
+        label: formData.label.trim(),
+        landmark: formData.landmark.trim() || undefined,
+        instructions: formData.instructions.trim() || undefined
+      };
+
+      console.log('Submitting address data:', cleanedFormData);
+      console.log('Editing address:', editingAddress);
+
       if (editingAddress) {
+        console.log('Updating address with ID:', editingAddress._id);
         // Update existing address
-        await apiRequest(`/addresses/${editingAddress._id}`, {
+        const response = await apiRequest(`/addresses/${editingAddress._id}`, {
           method: 'PUT',
-          body: JSON.stringify(formData)
+          body: JSON.stringify(cleanedFormData)
         });
+        console.log('Update response:', response);
         setSuccess('Address updated successfully!');
       } else {
+        console.log('Creating new address');
         // Create new address
-        await apiRequest('/addresses', {
+        const response = await apiRequest('/addresses', {
           method: 'POST',
-          body: JSON.stringify(formData)
+          body: JSON.stringify(cleanedFormData)
         });
+        console.log('Create response:', response);
         setSuccess('Address added successfully!');
       }
 
@@ -206,6 +258,7 @@ const AddressManager: React.FC = () => {
       resetForm();
       fetchAddresses(); // Refresh the list
     } catch (err) {
+      console.error('Address submission error:', err);
       setError(err instanceof Error ? err.message : 'Failed to save address');
     } finally {
       setSubmitting(false);
@@ -495,8 +548,8 @@ const AddressManager: React.FC = () => {
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {addresses.map((address) => (
-                <Card key={address._id} className={`relative ${address.isDefault ? 'ring-2 ring-blue-500' : ''}`}>
+              {addresses.map((address, index) => (
+                <Card key={address._id || `address-${index}`} className={`relative ${address.isDefault ? 'ring-2 ring-blue-500' : ''}`}>
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2">

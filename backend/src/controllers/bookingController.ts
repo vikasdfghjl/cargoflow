@@ -220,16 +220,16 @@ export const getDraft = async (req: AuthRequest, res: Response): Promise<void> =
       return;
     }
 
-    const { draftId } = req.params;
-    if (!draftId) {
+    const { sessionId } = req.params; // Fixed: use sessionId instead of draftId
+    if (!sessionId) {
       res.status(400).json({
         success: false,
-        message: 'Draft ID is required'
+        message: 'Session ID is required'
       } as ApiResponse);
       return;
     }
 
-    const draftData = await BookingDraftService.getDraft(draftId);
+    const draftData = await BookingDraftService.getDraft(sessionId); // Fixed: pass sessionId
 
     if (!draftData) {
       res.status(404).json({
@@ -293,16 +293,16 @@ export const deleteDraft = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    const { draftId } = req.params;
-    if (!draftId) {
+    const { sessionId } = req.params; // Fixed: use sessionId instead of draftId
+    if (!sessionId) {
       res.status(400).json({
         success: false,
-        message: 'Draft ID is required'
+        message: 'Session ID is required'
       } as ApiResponse);
       return;
     }
 
-    const deleted = await BookingDraftService.deleteDraft(draftId);
+    const deleted = await BookingDraftService.deleteDraft(sessionId); // Fixed: pass sessionId
 
     if (!deleted) {
       res.status(404).json({
@@ -337,16 +337,26 @@ export const autoSaveDraft = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    const { sessionId } = req.params; // Get sessionId from URL parameters
     const partialData = req.body;
 
-    const session = await BookingDraftService.autoSaveDraft(userId, partialData);
+    if (!sessionId) {
+      res.status(400).json({
+        success: false,
+        message: 'Session ID is required'
+      } as ApiResponse);
+      return;
+    }
+
+    // Update the existing draft using saveDraft with sessionId
+    const updatedDraftId = await BookingDraftService.saveDraft(userId, partialData, sessionId);
 
     res.status(200).json({
       success: true,
       message: 'Draft auto-saved successfully',
       data: {
-        draftId: session.sessionId,
-        lastSaved: session.lastAccessed
+        draftId: updatedDraftId,
+        lastSaved: new Date()
       }
     } as ApiResponse);
   } catch (error) {
@@ -593,6 +603,64 @@ export const updateBookingStatus = async (req: AuthRequest, res: Response): Prom
     } as ApiResponse);
   } catch (error) {
     console.error('Update booking status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    } as ApiResponse);
+  }
+};
+
+export const deleteBooking = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id: bookingId } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: 'User authentication required'
+      } as ApiResponse);
+      return;
+    }
+
+    // Find the booking first to check ownership and status
+    const booking = await Booking.findById(bookingId);
+
+    if (!booking) {
+      res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      } as ApiResponse);
+      return;
+    }
+
+    // Check if the booking belongs to the authenticated user
+    if (booking.customerId.toString() !== userId) {
+      res.status(403).json({
+        success: false,
+        message: 'You can only delete your own bookings'
+      } as ApiResponse);
+      return;
+    }
+
+    // Check if booking status allows deletion (only pending bookings can be deleted)
+    if (booking.status !== 'pending') {
+      res.status(400).json({
+        success: false,
+        message: 'Only pending bookings can be deleted'
+      } as ApiResponse);
+      return;
+    }
+
+    // Delete the booking
+    await Booking.findByIdAndDelete(bookingId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Booking deleted successfully'
+    } as ApiResponse);
+  } catch (error) {
+    console.error('Delete booking error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'

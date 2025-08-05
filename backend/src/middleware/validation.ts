@@ -183,6 +183,117 @@ export const validateCreateBooking = [
   validateRequest
 ];
 
+// Lenient validation for draft bookings (allows incomplete data)
+export const validateDraftBooking = [
+  body('customerId')
+    .optional()
+    .isMongoId()
+    .withMessage('Invalid customer ID'),
+  
+  // Pickup address - all optional for drafts
+  body('pickupAddress.address')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ min: 1, max: 200 })
+    .withMessage('Pickup address must be between 1 and 200 characters'),
+  
+  body('pickupAddress.contactName')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Pickup contact name must be between 1 and 100 characters'),
+  
+  body('pickupAddress.phone')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ min: 1 })
+    .withMessage('Please provide a pickup phone number'),
+  
+  body('pickupAddress.city')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('Pickup city must be between 1 and 50 characters'),
+  
+  body('pickupAddress.postalCode')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ min: 1 })
+    .withMessage('Pickup postal code is required'),
+  
+  // Delivery address - all optional for drafts
+  body('deliveryAddress.address')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ min: 1, max: 200 })
+    .withMessage('Delivery address must be between 1 and 200 characters'),
+  
+  body('deliveryAddress.contactName')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Delivery contact name must be between 1 and 100 characters'),
+  
+  body('deliveryAddress.phone')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ min: 1 })
+    .withMessage('Please provide a delivery phone number'),
+  
+  body('deliveryAddress.city')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('Delivery city must be between 1 and 50 characters'),
+  
+  body('deliveryAddress.postalCode')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ min: 1 })
+    .withMessage('Delivery postal code is required'),
+  
+  // Package details - optional for drafts
+  body('packageType')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('Package type must be between 1 and 50 characters'),
+  
+  body('weight')
+    .optional({ values: 'falsy' })
+    .isFloat({ min: 0.1, max: 1000 })
+    .withMessage('Weight must be between 0.1 and 1000 kg'),
+  
+  body('serviceType')
+    .optional({ values: 'falsy' })
+    .isIn(['standard', 'express', 'same_day'])
+    .withMessage('Service type must be standard, express, or same_day'),
+  
+  body('pickupDate')
+    .optional({ values: 'falsy' })
+    .isISO8601()
+    .toDate()
+    .withMessage('Please provide a valid pickup date'),
+  
+  body('specialInstructions')
+    .optional({ values: 'falsy' })
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Special instructions must be less than 500 characters'),
+  
+  body('insurance')
+    .optional({ values: 'falsy' })
+    .isBoolean()
+    .withMessage('Insurance must be a boolean value'),
+  
+  body('insuranceValue')
+    .optional({ values: 'falsy' })
+    .isFloat({ min: 0 })
+    .withMessage('Insurance value must be a positive number'),
+  
+  validateRequest
+];
+
 // Address validation rules
 export const validateCreateAddress = [
   body('label')

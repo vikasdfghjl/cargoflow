@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,39 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import AddressSelector from "./AddressSelector";
-import { statelessBookingService, DraftAutoSaver, DraftData } from "@/services/statelessBookingService";
+import { statelessBookingService } from "@/services/statelessBookingService";
+import { 
+  validateCompleteAddress,
+  validateWeight,
+  validateContactName,
+  validatePhone,
+  validatePostalCode,
+  validateCity,
+  formatPhoneForAPI,
+  formatContactNameForAPI,
+  formatPostalCodeForAPI,
+  formatCityForAPI,
+  formatAddressForAPI,
+  AddressData
+} from "@/utils/validation";
+
+// Local form data interface (no longer using DraftData from service)
+interface FormData {
+  pickupAddress: Partial<AddressData>;
+  deliveryAddress: Partial<AddressData>;
+  weight?: number;
+  dimensions?: {
+    length?: number;
+    width?: number;
+    height?: number;
+  };
+  serviceType: 'standard' | 'express' | 'same_day';
+  packageType?: 'document' | 'package' | 'fragile' | 'bulk';
+  pickupDate?: string;
+  specialInstructions?: string;
+  insurance: boolean;
+  insuranceValue?: number;
+}
 import { 
   MapPin, 
   Package, 
@@ -19,15 +51,11 @@ import {
   Shield,
   Zap,
   CheckCircle,
-  ArrowRight,
-  Save,
-  Loader2,
-  AlertCircle,
-  FileText
+  ArrowRight
 } from "lucide-react";
 
 const NewBooking = () => {
-  const [formData, setFormData] = useState<DraftData>({
+  const [formData, setFormData] = useState<FormData>({
     pickupAddress: {},
     deliveryAddress: {},
     packageType: undefined,
@@ -41,11 +69,9 @@ const NewBooking = () => {
 
   const [currentStep, setCurrentStep] = useState(1);
   const [estimatedCost, setEstimatedCost] = useState<number | null>(null);
-  const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
-  const [isAutoSaving, setIsAutoSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error' | null>(null);
-  const [autoSaver] = useState(() => new DraftAutoSaver(3000)); // 3 second delay
+  
+  // Validation state
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   // Service type options
   const serviceTypes = [
@@ -75,46 +101,74 @@ const NewBooking = () => {
     }
   ];
 
-  // Auto-save draft whenever form data changes
-  useEffect(() => {
-    const hasData = Object.values(formData).some(value => {
-      if (typeof value === 'object' && value !== null) {
-        return Object.values(value).some(v => v !== undefined && v !== '');
+  // Validation helper function
+  const validateField = (field: string, value: string | number) => {
+    let error = '';
+    
+    switch (field) {
+      case 'pickupAddress.contactName':
+      case 'deliveryAddress.contactName': {
+        const nameValidation = validateContactName(value as string);
+        if (!nameValidation.isValid) {
+          error = nameValidation.error || '';
+        }
+        break;
       }
-      return value !== undefined && value !== '';
-    });
-
-    if (hasData) {
-      setSaveStatus('saving');
-      setIsAutoSaving(true);
-
-      autoSaver.autoSave(formData)
-        .then((result) => {
-          setCurrentDraftId(result.draftId);
-          setLastSaved(result.lastSaved);
-          setSaveStatus('saved');
-        })
-        .catch((error) => {
-          console.error('Auto-save failed:', error);
-          setSaveStatus('error');
-        })
-        .finally(() => {
-          setIsAutoSaving(false);
-          // Clear status after 3 seconds
-          setTimeout(() => setSaveStatus(null), 3000);
-        });
+      
+      case 'pickupAddress.phone':
+      case 'deliveryAddress.phone': {
+        const phoneValidation = validatePhone(value as string);
+        if (!phoneValidation.isValid) {
+          error = phoneValidation.error || '';
+        }
+        break;
+      }
+      
+      case 'pickupAddress.postalCode':
+      case 'deliveryAddress.postalCode': {
+        const postalValidation = validatePostalCode(value as string);
+        if (!postalValidation.isValid) {
+          error = postalValidation.error || '';
+        }
+        break;
+      }
+      
+      case 'pickupAddress.city':
+      case 'deliveryAddress.city': {
+        const cityValidation = validateCity(value as string);
+        if (!cityValidation.isValid) {
+          error = cityValidation.error || '';
+        }
+        break;
+      }
+      
+      case 'weight': {
+        const weightValidation = validateWeight(value as number);
+        if (!weightValidation.isValid) {
+          error = weightValidation.error || '';
+        }
+        break;
+      }
     }
-
-    return () => autoSaver.cancel();
-  }, [formData, autoSaver]);
+    
+    setValidationErrors(prev => ({
+      ...prev,
+      [field]: error
+    }));
+  };
 
   const handleInputChange = useCallback((field: string, value: string | number | boolean | undefined | Record<string, unknown>) => {
+    // Validate the field if it's a string or number
+    if (typeof value === 'string' || typeof value === 'number') {
+      validateField(field, value);
+    }
+    
     setFormData(prev => {
       const keys = field.split('.');
       if (keys.length === 1) {
         return { ...prev, [field]: value };
       } else if (keys.length === 2) {
-        const currentField = prev[keys[0] as keyof DraftData];
+        const currentField = prev[keys[0] as keyof FormData];
         const updatedField = typeof currentField === 'object' && currentField !== null
           ? { ...currentField, [keys[1]]: value }
           : { [keys[1]]: value };
@@ -145,12 +199,90 @@ const NewBooking = () => {
 
   const handleSubmitBooking = async () => {
     try {
-      await statelessBookingService.createBooking(formData);
-      
-      // Clear draft after successful booking
-      if (currentDraftId) {
-        await statelessBookingService.deleteDraft(currentDraftId);
+      // Validate required fields first
+      if (!formData.pickupAddress || !formData.deliveryAddress) {
+        alert('Please complete both pickup and delivery addresses');
+        return;
       }
+
+      if (!formData.weight) {
+        alert('Please specify the package weight');
+        return;
+      }
+
+      if (!formData.packageType) {
+        alert('Please select a package type');
+        return;
+      }
+
+      if (!formData.pickupDate) {
+        alert('Please select a pickup date');
+        return;
+      }
+
+      // Validate pickup address
+      const pickupAddress = formData.pickupAddress as AddressData;
+      if (!pickupAddress.address || !pickupAddress.contactName || !pickupAddress.phone || 
+          !pickupAddress.city || !pickupAddress.postalCode) {
+        alert('Please complete all pickup address fields');
+        return;
+      }
+
+      // Validate delivery address
+      const deliveryAddress = formData.deliveryAddress as AddressData;
+      if (!deliveryAddress.address || !deliveryAddress.contactName || !deliveryAddress.phone || 
+          !deliveryAddress.city || !deliveryAddress.postalCode) {
+        alert('Please complete all delivery address fields');
+        return;
+      }
+
+      // Validate individual fields
+      const pickupValidation = validateCompleteAddress(pickupAddress, 'pickup');
+      const pickupErrors = pickupValidation.filter(result => !result.isValid);
+      
+      if (pickupErrors.length > 0) {
+        alert(`Pickup address errors:\n${pickupErrors.map(e => e.error).join('\n')}`);
+        return;
+      }
+
+      const deliveryValidation = validateCompleteAddress(deliveryAddress, 'delivery');
+      const deliveryErrors = deliveryValidation.filter(result => !result.isValid);
+      
+      if (deliveryErrors.length > 0) {
+        alert(`Delivery address errors:\n${deliveryErrors.map(e => e.error).join('\n')}`);
+        return;
+      }
+
+      // Validate weight
+      const weightValidation = validateWeight(formData.weight);
+      if (!weightValidation.isValid) {
+        alert(`Weight error: ${weightValidation.error}`);
+        return;
+      }
+
+      // Format and clean the data for API submission
+      const cleanedFormData = {
+        ...formData,
+        pickupAddress: {
+          address: formatAddressForAPI(pickupAddress.address),
+          contactName: formatContactNameForAPI(pickupAddress.contactName),
+          phone: formatPhoneForAPI(pickupAddress.phone),
+          city: formatCityForAPI(pickupAddress.city),
+          postalCode: formatPostalCodeForAPI(pickupAddress.postalCode),
+          instructions: pickupAddress.instructions?.trim() || undefined
+        },
+        deliveryAddress: {
+          address: formatAddressForAPI(deliveryAddress.address),
+          contactName: formatContactNameForAPI(deliveryAddress.contactName),
+          phone: formatPhoneForAPI(deliveryAddress.phone),
+          city: formatCityForAPI(deliveryAddress.city),
+          postalCode: formatPostalCodeForAPI(deliveryAddress.postalCode),
+          instructions: deliveryAddress.instructions?.trim() || undefined
+        },
+        specialInstructions: formData.specialInstructions?.trim() || undefined
+      };
+
+      await statelessBookingService.createBooking(cleanedFormData);
       
       // Reset form
       setFormData({
@@ -165,45 +297,12 @@ const NewBooking = () => {
         insuranceValue: undefined
       });
       setCurrentStep(1);
-      setCurrentDraftId(null);
-      setLastSaved(null);
       
       alert('Booking created successfully!');
     } catch (error) {
       console.error('Booking creation failed:', error);
-      alert('Failed to create booking. Please try again.');
+      alert(`Failed to create booking: ${error instanceof Error ? error.message : 'Please try again.'}`);
     }
-  };
-
-  const renderAutoSaveStatus = () => {
-    if (saveStatus === 'saving' || isAutoSaving) {
-      return (
-        <div className="flex items-center gap-2 text-sm text-blue-600">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Saving draft...
-        </div>
-      );
-    }
-    
-    if (saveStatus === 'saved' && lastSaved) {
-      return (
-        <div className="flex items-center gap-2 text-sm text-green-600">
-          <CheckCircle className="h-4 w-4" />
-          Draft saved at {new Date(lastSaved).toLocaleTimeString()}
-        </div>
-      );
-    }
-
-    if (saveStatus === 'error') {
-      return (
-        <div className="flex items-center gap-2 text-sm text-red-600">
-          <AlertCircle className="h-4 w-4" />
-          Failed to save draft
-        </div>
-      );
-    }
-
-    return null;
   };
 
   const renderStepContent = () => {
@@ -244,7 +343,11 @@ const NewBooking = () => {
                       placeholder="Contact person name"
                       value={formData.pickupAddress?.contactName || ''}
                       onChange={(e) => handleInputChange("pickupAddress.contactName", e.target.value)}
+                      className={validationErrors['pickupAddress.contactName'] ? 'border-red-500' : ''}
                     />
+                    {validationErrors['pickupAddress.contactName'] && (
+                      <p className="text-sm text-red-500 mt-1">{validationErrors['pickupAddress.contactName']}</p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="pickupPhone">Phone</Label>
@@ -253,7 +356,11 @@ const NewBooking = () => {
                       placeholder="Contact phone number"
                       value={formData.pickupAddress?.phone || ''}
                       onChange={(e) => handleInputChange("pickupAddress.phone", e.target.value)}
+                      className={validationErrors['pickupAddress.phone'] ? 'border-red-500' : ''}
                     />
+                    {validationErrors['pickupAddress.phone'] && (
+                      <p className="text-sm text-red-500 mt-1">{validationErrors['pickupAddress.phone']}</p>
+                    )}
                   </div>
                 </div>
                 
@@ -265,7 +372,11 @@ const NewBooking = () => {
                       placeholder="City"
                       value={formData.pickupAddress?.city || ''}
                       onChange={(e) => handleInputChange("pickupAddress.city", e.target.value)}
+                      className={validationErrors['pickupAddress.city'] ? 'border-red-500' : ''}
                     />
+                    {validationErrors['pickupAddress.city'] && (
+                      <p className="text-sm text-red-500 mt-1">{validationErrors['pickupAddress.city']}</p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="pickupPostalCode">Postal Code</Label>
@@ -274,7 +385,11 @@ const NewBooking = () => {
                       placeholder="Postal code"
                       value={formData.pickupAddress?.postalCode || ''}
                       onChange={(e) => handleInputChange("pickupAddress.postalCode", e.target.value)}
+                      className={validationErrors['pickupAddress.postalCode'] ? 'border-red-500' : ''}
                     />
+                    {validationErrors['pickupAddress.postalCode'] && (
+                      <p className="text-sm text-red-500 mt-1">{validationErrors['pickupAddress.postalCode']}</p>
+                    )}
                   </div>
                 </div>
                 
@@ -304,7 +419,11 @@ const NewBooking = () => {
                       placeholder="Contact person name"
                       value={formData.deliveryAddress?.contactName || ''}
                       onChange={(e) => handleInputChange("deliveryAddress.contactName", e.target.value)}
+                      className={validationErrors['deliveryAddress.contactName'] ? 'border-red-500' : ''}
                     />
+                    {validationErrors['deliveryAddress.contactName'] && (
+                      <p className="text-sm text-red-500 mt-1">{validationErrors['deliveryAddress.contactName']}</p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="deliveryPhone">Phone</Label>
@@ -313,7 +432,11 @@ const NewBooking = () => {
                       placeholder="Contact phone number"
                       value={formData.deliveryAddress?.phone || ''}
                       onChange={(e) => handleInputChange("deliveryAddress.phone", e.target.value)}
+                      className={validationErrors['deliveryAddress.phone'] ? 'border-red-500' : ''}
                     />
+                    {validationErrors['deliveryAddress.phone'] && (
+                      <p className="text-sm text-red-500 mt-1">{validationErrors['deliveryAddress.phone']}</p>
+                    )}
                   </div>
                 </div>
                 
@@ -325,7 +448,11 @@ const NewBooking = () => {
                       placeholder="City"
                       value={formData.deliveryAddress?.city || ''}
                       onChange={(e) => handleInputChange("deliveryAddress.city", e.target.value)}
+                      className={validationErrors['deliveryAddress.city'] ? 'border-red-500' : ''}
                     />
+                    {validationErrors['deliveryAddress.city'] && (
+                      <p className="text-sm text-red-500 mt-1">{validationErrors['deliveryAddress.city']}</p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="deliveryPostalCode">Postal Code</Label>
@@ -334,7 +461,11 @@ const NewBooking = () => {
                       placeholder="Postal code"
                       value={formData.deliveryAddress?.postalCode || ''}
                       onChange={(e) => handleInputChange("deliveryAddress.postalCode", e.target.value)}
+                      className={validationErrors['deliveryAddress.postalCode'] ? 'border-red-500' : ''}
                     />
+                    {validationErrors['deliveryAddress.postalCode'] && (
+                      <p className="text-sm text-red-500 mt-1">{validationErrors['deliveryAddress.postalCode']}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -345,7 +476,7 @@ const NewBooking = () => {
                   <select
                     id="packageType"
                     value={formData.packageType || ''}
-                    onChange={(e) => handleInputChange("packageType", e.target.value as DraftData['packageType'])}
+                    onChange={(e) => handleInputChange("packageType", e.target.value as FormData['packageType'])}
                     className="w-full px-3 py-2 border rounded-md bg-background"
                   >
                     <option value="">Select package type</option>
@@ -365,7 +496,11 @@ const NewBooking = () => {
                       placeholder="0.0"
                       value={formData.weight || ''}
                       onChange={(e) => handleInputChange("weight", parseFloat(e.target.value) || undefined)}
+                      className={validationErrors['weight'] ? 'border-red-500' : ''}
                     />
+                    {validationErrors['weight'] && (
+                      <p className="text-sm text-red-500 mt-1">{validationErrors['weight']}</p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="pickupDate">Pickup Date</Label>
@@ -381,10 +516,7 @@ const NewBooking = () => {
               </div>
             </div>
 
-            <div className="flex justify-between items-center pt-4">
-              <div className="flex-1">
-                {renderAutoSaveStatus()}
-              </div>
+            <div className="flex justify-end items-center pt-4">
               <Button
                 onClick={() => setCurrentStep(2)}
                 disabled={!formData.pickupAddress?.address || !formData.deliveryAddress?.address}
@@ -497,18 +629,15 @@ const NewBooking = () => {
               >
                 Back
               </Button>
-              <div className="flex items-center gap-4">
-                {renderAutoSaveStatus()}
-                <Button
-                  onClick={() => {
-                    calculateEstimate();
-                    setCurrentStep(3);
-                  }}
-                  className="bg-transport-primary hover:bg-transport-primary/90"
-                >
-                  Get Quote <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
+              <Button
+                onClick={() => {
+                  calculateEstimate();
+                  setCurrentStep(3);
+                }}
+                className="bg-transport-primary hover:bg-transport-primary/90"
+              >
+                Get Quote <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
             </div>
           </div>
         );
@@ -607,17 +736,14 @@ const NewBooking = () => {
               >
                 Back
               </Button>
-              <div className="flex items-center gap-4">
-                {renderAutoSaveStatus()}
-                <Button
-                  onClick={handleSubmitBooking}
-                  className="bg-green-600 hover:bg-green-700"
-                  size="lg"
-                >
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  Confirm Booking
-                </Button>
-              </div>
+              <Button
+                onClick={handleSubmitBooking}
+                className="bg-green-600 hover:bg-green-700"
+                size="lg"
+              >
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Confirm Booking
+              </Button>
             </div>
           </div>
         );
@@ -662,15 +788,6 @@ const NewBooking = () => {
       </Card>
 
       {/* Draft Info */}
-      {currentDraftId && (
-        <Alert>
-          <FileText className="h-4 w-4" />
-          <AlertDescription>
-            Your booking draft is being automatically saved. You can come back later to complete it.
-            {lastSaved && ` Last saved: ${new Date(lastSaved).toLocaleString()}`}
-          </AlertDescription>
-        </Alert>
-      )}
     </div>
   );
 };
