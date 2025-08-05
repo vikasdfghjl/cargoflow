@@ -14,7 +14,10 @@
     "test:coverage": "jest --coverage",
     "test:unit": "jest --testPathPattern=unit",
     "test:integration": "jest --testPathPattern=integration",
-    "test:e2e": "jest --testPathPattern=e2e"
+    "test:e2e": "jest --testPathPattern=e2e",
+    "seed": "tsx scripts/seedDatabase.ts",
+    "seed:users": "tsx scripts/seedDatabase.ts",
+    "verify:seed": "tsx scripts/verifySeededData.ts"
   },
   "keywords": [
     "nodejs",

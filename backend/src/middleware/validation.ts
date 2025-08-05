@@ -250,6 +250,81 @@ export const validateCreateAddress = [
   validateRequest
 ];
 
+// Address update validation (all fields optional)
+export const validateUpdateAddress = [
+  body('label')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Address label must be between 2 and 100 characters'),
+  
+  body('street')
+    .optional()
+    .trim()
+    .isLength({ min: 5, max: 200 })
+    .withMessage('Street address must be between 5 and 200 characters'),
+  
+  body('contactName')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Contact name must be between 2 and 100 characters')
+    .matches(/^[a-zA-Z\s]+$/)
+    .withMessage('Contact name can only contain letters and spaces'),
+  
+  body('phone')
+    .optional()
+    .isMobilePhone('any')
+    .withMessage('Please provide a valid phone number'),
+  
+  body('city')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage('City must be between 2 and 50 characters')
+    .matches(/^[a-zA-Z\s]+$/)
+    .withMessage('City name can only contain letters and spaces'),
+  
+  body('state')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage('State must be between 2 and 50 characters')
+    .matches(/^[a-zA-Z\s]+$/)
+    .withMessage('State name can only contain letters and spaces'),
+  
+  body('zipCode')
+    .optional()
+    .trim()
+    .matches(/^[0-9]{6}$/)
+    .withMessage('Zip code must be a 6-digit number'),
+  
+  body('type')
+    .optional()
+    .isIn(['home', 'office', 'warehouse', 'other'])
+    .withMessage('Address type must be home, office, warehouse, or other'),
+  
+  body('country')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Country must be between 2 and 50 characters'),
+  
+  body('landmark')
+    .optional()
+    .trim()
+    .isLength({ max: 200 })
+    .withMessage('Landmark must be less than 200 characters'),
+  
+  body('instructions')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Instructions must be less than 500 characters'),
+  
+  validateRequest
+];
+
 // Parameter validation rules
 export const validateMongoId = [
   param('id')

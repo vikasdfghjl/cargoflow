@@ -8,7 +8,7 @@ export class TestHelpers {
    * Generate a valid JWT token for testing
    */
   static generateTestToken(userId: string, userType: 'customer' | 'admin' = 'customer'): string {
-    const jwtSecret = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing-only';
+    const jwtSecret = process.env.JWT_SECRET || 'test-jwt-secret-key-for-testing-purposes-only-not-for-production-use';
     return jwt.sign(
       { userId, userType },
       jwtSecret,
@@ -23,11 +23,11 @@ export class TestHelpers {
     return {
       firstName: 'John',
       lastName: 'Doe',
-      email: 'john.doe@test.com',
+      email: TestHelpers.generateRandomEmail(),
       password: 'TestPassword123!',
       userType: 'customer' as const,
-      companyName: 'Test Company',
-      phone: '+1234567890',
+      companyName: 'Test Company Inc',
+      phone: TestHelpers.generateRandomPhone(),
       isActive: true,
       ...overrides
     };
@@ -40,11 +40,11 @@ export class TestHelpers {
     return {
       firstName: 'John',
       lastName: 'Doe',
-      email: 'john.doe@test.com',
+      email: TestHelpers.generateRandomEmail(),
       password: 'TestPassword123!',
       userType: 'customer' as const,
-      companyName: 'Test Company',
-      phone: '+1234567890',
+      companyName: 'Test Company Inc',
+      phone: TestHelpers.generateRandomPhone(),
       ...overrides
     };
   }
@@ -58,11 +58,11 @@ export class TestHelpers {
       label: 'Test Address',
       type: 'home' as const,
       contactName: 'John Doe',
-      phone: '+1234567890',
+      phone: TestHelpers.generateRandomPhone(),
       street: '123 Test Street',
       city: 'Test City',
       state: 'Test State',
-      zipCode: '12345',
+      zipCode: '123456',
       country: 'United States',
       isDefault: false,
       ...overrides
@@ -77,10 +77,10 @@ export class TestHelpers {
       label: 'Test Address',
       street: '123 Test Street',
       contactName: 'John Doe',
-      phone: '+1234567890',
+      phone: TestHelpers.generateRandomPhone(),
       city: 'Test City',
       state: 'Test State',
-      zipCode: '12345',
+      zipCode: '123456',
       country: 'United States',
       type: 'home' as const,
       isDefault: false,
@@ -89,61 +89,31 @@ export class TestHelpers {
   }
 
   /**
-   * Generate a test booking data object
+   * Generate a test booking data object that matches validation requirements
    */
-  static createTestBookingData(customerId: string, overrides: Partial<IBooking> = {}): Partial<IBooking> {
+  static createTestBookingData(customerId: string, overrides: any = {}): any {
     return {
       customerId: new Types.ObjectId(customerId),
-      bookingId: 'CF123456789',
       pickupAddress: {
-        street: '123 Pickup Street',
+        address: '123 Pickup Street, Main Building',
+        contactName: 'John Pickup',
+        phone: TestHelpers.generateRandomPhone(),
         city: 'Pickup City',
-        state: 'Pickup State',
-        zipCode: '12345',
-        coordinates: [-74.0060, 40.7128]
+        postalCode: '123456'
       },
       deliveryAddress: {
-        street: '456 Delivery Avenue',
+        address: '456 Delivery Avenue, Side Entrance',
+        contactName: 'Jane Delivery',
+        phone: TestHelpers.generateRandomPhone(),
         city: 'Delivery City',
-        state: 'Delivery State',
-        zipCode: '54321',
-        coordinates: [-73.9352, 40.7304]
+        postalCode: '654321'
       },
-      packageDetails: {
-        type: 'package',
-        description: 'Test Package',
-        weight: 10,
-        dimensions: {
-          length: 20,
-          width: 15,
-          height: 10
-        },
-        value: 100,
-        specialInstructions: 'Handle with care'
-      },
-      serviceType: 'standard' as const,
-      status: 'pending' as const,
-      pricing: {
-        basePrice: 100,
-        taxes: 18,
-        totalAmount: 118,
-        currency: 'USD'
-      },
-      timeline: {
-        bookedAt: new Date(),
-        estimatedDelivery: new Date(Date.now() + 24 * 60 * 60 * 1000)
-      },
-      tracking: {
-        statusHistory: [{
-          status: 'pending',
-          timestamp: new Date()
-        }]
-      },
-      recipient: {
-        name: 'Test Recipient',
-        phone: '+1234567890'
-      },
-      paymentStatus: 'pending' as const,
+      packageType: 'package',
+      weight: 10.5,
+      serviceType: 'standard',
+      pickupDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      specialInstructions: 'Handle with care',
+      insurance: false,
       ...overrides
     };
   }
@@ -206,11 +176,8 @@ export class TestHelpers {
    * Generate a random phone number for testing
    */
   static generateRandomPhone(): string {
-    // Generate a more standard US phone number format that passes express-validator
-    const areaCode = Math.floor(Math.random() * 900) + 100; // 100-999
-    const exchange = Math.floor(Math.random() * 900) + 100; // 100-999
-    const number = Math.floor(Math.random() * 9000) + 1000; // 1000-9999
-    return `+1${areaCode}${exchange}${number}`;
+    // Simple valid phone number that works with both express-validator and MongoDB regex
+    return '+12345678901';
   }
 
   /**

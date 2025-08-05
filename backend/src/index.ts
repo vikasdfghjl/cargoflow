@@ -21,8 +21,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Connect to MongoDB
-connectDB();
+// Connect to MongoDB only if not in test environment
+// Tests handle their own database connections
+if (process.env.NODE_ENV !== 'test') {
+  connectDB();
+}
 
 // Trust proxy for rate limiting (if behind reverse proxy)
 app.set('trust proxy', 1);

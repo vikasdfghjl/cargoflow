@@ -1,3 +1,5 @@
+// @ts-nocheck
+import { describe, it, beforeAll, expect } from '@jest/globals';
 import request from 'supertest';
 import express from 'express';
 import authRoutes from '../../../src/routes/auth';
@@ -27,7 +29,7 @@ describe('Auth Controller Integration Tests', () => {
         password: 'Password123!',
         userType: 'customer',
         phone: TestHelpers.generateRandomPhone(),
-        companyName: 'Test Company'
+        companyName: 'Test Company Inc'
       };
 
       // Act
@@ -57,7 +59,7 @@ describe('Auth Controller Integration Tests', () => {
         password: 'Admin123!',
         userType: 'admin',
         phone: TestHelpers.generateRandomPhone(),
-        companyName: 'Admin Company'
+        companyName: 'Admin Company Inc'
       };
 
       // Act
@@ -74,8 +76,12 @@ describe('Auth Controller Integration Tests', () => {
     it('should return 400 for missing required fields', async () => {
       // Arrange
       const incompleteData = {
-        firstName: 'Test',
-        // Missing required fields
+        firstName: 'T', // Too short
+        lastName: '', // Missing
+        email: 'invalid-email', // Invalid format
+        password: '123', // Too short and weak
+        userType: 'invalid', // Invalid type
+        phone: 'invalid-phone' // Invalid format
       };
 
       // Act
@@ -116,8 +122,10 @@ describe('Auth Controller Integration Tests', () => {
         firstName: 'Test',
         lastName: 'User',
         email: TestHelpers.generateRandomEmail(),
-        password: '123', // Too weak
-        userType: 'customer'
+        password: 'weak123', // Still weak - missing uppercase
+        userType: 'customer',
+        phone: TestHelpers.generateRandomPhone(),
+        companyName: 'Test Company Inc'
       };
 
       // Act
@@ -136,9 +144,11 @@ describe('Auth Controller Integration Tests', () => {
       const userData = {
         firstName: 'Test',
         lastName: 'User',
-        email: 'duplicate@example.com',
+        email: TestHelpers.generateRandomEmail(),
         password: 'Password123!',
-        userType: 'customer'
+        userType: 'customer',
+        phone: TestHelpers.generateRandomPhone(),
+        companyName: 'Test Company Inc'
       };
 
       // Create first user
@@ -165,7 +175,9 @@ describe('Auth Controller Integration Tests', () => {
         lastName: 'User',
         email: TestHelpers.generateRandomEmail(),
         password: 'Password123!',
-        userType: 'invalid_type'
+        userType: 'invalid-type', // Invalid user type
+        phone: TestHelpers.generateRandomPhone(),
+        companyName: 'Test Company Inc'
       };
 
       // Act
@@ -191,13 +203,21 @@ describe('Auth Controller Integration Tests', () => {
         lastName: 'User',
         email: TestHelpers.generateRandomEmail(),
         password,
-        userType: 'customer'
+        userType: 'customer',
+        phone: TestHelpers.generateRandomPhone(),
+        companyName: 'Test Company Inc'
       };
 
       const response = await request(app)
         .post('/api/auth/register')
-        .send(userData);
+        .send(userData)
+        .expect(201);
 
+      // Check if response has the expected structure
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toBeDefined();
+      expect(response.body.data.user).toBeDefined();
+      
       testUser = response.body.data.user;
       testUser.password = password; // Store original password for login
     });

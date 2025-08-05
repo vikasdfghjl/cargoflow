@@ -372,19 +372,25 @@ export const getBookingById = async (req: AuthRequest, res: Response): Promise<v
 
     const { id: bookingId } = req.params;
 
-    // Find booking by ID and ensure it belongs to the user
-    const booking = await Booking.findOne({
-      _id: bookingId,
-      customerId: userId
-    })
-    .populate('customerId', 'firstName lastName email')
-    .populate('driverId', 'firstName lastName phone')
-    .lean();
+    // First, check if booking exists
+    const booking = await Booking.findById(bookingId)
+      .populate('customerId', 'firstName lastName email')
+      .populate('driverId', 'firstName lastName phone')
+      .lean();
 
     if (!booking) {
       res.status(404).json({
         success: false,
         message: 'Booking not found'
+      } as ApiResponse);
+      return;
+    }
+
+    // Then check if it belongs to the user
+    if (booking.customerId._id.toString() !== userId) {
+      res.status(403).json({
+        success: false,
+        message: 'Access denied'
       } as ApiResponse);
       return;
     }

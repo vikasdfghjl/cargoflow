@@ -1,47 +1,36 @@
-import { MongoMemoryServer } from 'mongodb-memory-server';
-import mongoose from 'mongoose';
+import { beforeAll, afterAll, afterEach } from '@jest/globals';
+import TestDatabase from './utils/testDatabase';
 import dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config({ path: '.env.test' });
 
-let mongoServer: MongoMemoryServer;
+const testDb = TestDatabase.getInstance();
 
 // Global test setup
 beforeAll(async () => {
-  // Start in-memory MongoDB instance
-  mongoServer = await MongoMemoryServer.create();
-  const mongoUri = mongoServer.getUri();
-  
-  // Connect to the in-memory database
-  await mongoose.connect(mongoUri);
-});
+  // Connect to test database
+  await testDb.connect();
+}, 30000); // Increase timeout for database setup
 
 // Global test teardown
 afterAll(async () => {
-  // Close database connection
-  await mongoose.connection.dropDatabase();
-  await mongoose.connection.close();
-  
-  // Stop the in-memory MongoDB instance
-  if (mongoServer) {
-    await mongoServer.stop();
-  }
-});
+  // Disconnect from test database
+  await testDb.disconnect();
+}, 30000); // Increase timeout for database teardown
 
 // Clean up after each test
 afterEach(async () => {
-  // Clear all collections
-  const collections = mongoose.connection.collections;
-  for (const key in collections) {
-    const collection = collections[key];
-    if (collection) {
-      await collection.deleteMany({});
-    }
+  // Skip database clearing for E2E tests to maintain state across tests
+  if (process.env.SKIP_DATABASE_CLEARING === 'true') {
+    return;
   }
-});
+  
+  // Clear all collections between tests
+  await testDb.clearDatabase();
+}, 10000);
 
-// Set test environment variables
+// Set test environment variables - use same JWT_SECRET as .env.test
 process.env.NODE_ENV = 'test';
-process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing-only';
+process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing-purposes-only-not-for-production-use';
 process.env.BCRYPT_SALT_ROUNDS = '4'; // Lower rounds for faster tests

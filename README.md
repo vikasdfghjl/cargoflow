@@ -5,6 +5,7 @@ A comprehensive B2B transport and logistics management platform built with moder
 ## 🚀 Features
 
 ### Customer Portal
+
 - **Booking Management**: Create, track, and manage transport bookings
 - **Address Management**: Save and manage pickup/delivery addresses
 - **Real-time Tracking**: Track shipments with live status updates
@@ -12,6 +13,7 @@ A comprehensive B2B transport and logistics management platform built with moder
 - **Profile Management**: Manage account details and preferences
 
 ### Admin Dashboard
+
 - **Booking Overview**: Comprehensive booking management with statistics
 - **Customer Management**: User account management and analytics
 - **Driver Management**: Driver assignment and performance tracking
@@ -19,6 +21,7 @@ A comprehensive B2B transport and logistics management platform built with moder
 - **Status Management**: Update booking statuses and assign drivers
 
 ### Technical Features
+
 - **Centralized Error Handling**: Comprehensive error management system
 - **JWT Authentication**: Secure token-based authentication
 - **Role-based Access Control**: Customer and admin role separation
@@ -148,6 +151,32 @@ API_VERSION=v1
 ### 3. Database Setup
 
 The application will automatically connect to MongoDB and create necessary collections on first run.
+
+#### Database Seeding
+
+For development and testing purposes, you can populate your database with sample data:
+
+```bash
+# Navigate to backend directory
+cd backend
+
+# Seed database with sample users and addresses
+npm run seed
+
+# Alternative: Seed only users (without addresses)
+npm run seed:users
+
+# Verify seeded data
+npm run verify:seed
+```
+
+**Default Seeded Users:**
+
+- **Customer User**: `vikas@gmail.com` / `Password@123`
+- **Customer User**: `farhan@gmail.com` / `Password@123`  
+- **Admin User**: `admin@cargoflow.com` / `Password@123`
+
+Each customer user comes with 3 pre-configured addresses (home, office, warehouse) for testing booking workflows.
 
 ### 4. Access the Application
 

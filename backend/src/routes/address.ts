@@ -9,6 +9,7 @@ import {
 import { authenticate } from '../middleware/auth';
 import { 
   validateCreateAddress,
+  validateUpdateAddress,
   validateMongoId,
   validatePagination
 } from '../middleware/validation';
@@ -21,7 +22,7 @@ router.use(authenticate);
 // Address operations
 router.get('/', validatePagination, getAddresses);
 router.post('/', validateCreateAddress, createAddress);
-router.put('/:id', validateMongoId, validateCreateAddress, updateAddress);
+router.put('/:id', validateMongoId, validateUpdateAddress, updateAddress);
 router.delete('/:id', validateMongoId, deleteAddress);
 router.patch('/:id/default', validateMongoId, setDefaultAddress);
 
