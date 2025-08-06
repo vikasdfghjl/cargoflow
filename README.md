@@ -8,6 +8,7 @@ A comprehensive B2B transport and logistics management platform built with moder
 
 - **Booking Management**: Create, track, and manage transport bookings
 - **Address Management**: Save and manage pickup/delivery addresses
+- **Google Maps Integration**: Pinpoint locations on interactive maps for accurate delivery addresses
 - **Real-time Tracking**: Track shipments with live status updates
 - **Invoice Management**: View and download booking invoices
 - **Profile Management**: Manage account details and preferences
@@ -52,7 +53,8 @@ A comprehensive B2B transport and logistics management platform built with moder
 ## 🏗️ Architecture
 
 ### Project Structure
-```
+
+```sh
 cargo-pathway-pro/
 ├── frontend/                    # React frontend application
 │   ├── src/
@@ -84,7 +86,8 @@ cargo-pathway-pro/
 ```
 
 ### API Endpoints
-```
+
+```sh
 /api/v1/auth/
 ├── POST /register              # User registration
 ├── POST /login                 # User authentication
@@ -111,6 +114,7 @@ cargo-pathway-pro/
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - **Node.js** (v18 or higher)
 - **MongoDB** (local or cloud instance)
 - **Git** for version control
@@ -147,6 +151,26 @@ JWT_SECRET=your_super_secret_jwt_key_minimum_32_characters
 CORS_ORIGIN=http://localhost:3000
 API_VERSION=v1
 ```
+
+Create `.env` file in the frontend directory:
+
+```env
+VITE_API_URL=http://localhost:5000/api/v1
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+```
+
+#### Google Maps Integration Setup
+
+For the location picker functionality to work:
+
+1. Go to [Google Cloud Console](https://console.developers.google.com/)
+2. Create a new project or select an existing one
+3. Enable the following APIs:
+   - Maps JavaScript API
+   - Places API
+   - Geocoding API
+4. Create an API key and restrict it to your domain (optional but recommended)
+5. Add the API key to your frontend `.env` file as `VITE_GOOGLE_MAPS_API_KEY`
 
 ### 3. Database Setup
 
@@ -187,16 +211,19 @@ Each customer user comes with 3 pre-configured addresses (home, office, warehous
 ## 🔐 Authentication & Authorization
 
 ### User Types
+
 - **Customer**: Can create bookings, track shipments, manage profile
 - **Admin**: Full system access, user management, booking oversight
 
 ### Authentication Flow
+
 1. User registers/logs in with email and password
 2. Server returns JWT token (7-day expiry)
 3. Token stored in localStorage and sent with API requests
 4. Protected routes validated with middleware
 
 ### Security Features
+
 - Password hashing with bcryptjs (12 salt rounds)
 - JWT token validation and expiry
 - Role-based route protection
@@ -209,6 +236,7 @@ Each customer user comes with 3 pre-configured addresses (home, office, warehous
 The backend implements a comprehensive centralized error handling system:
 
 ### Features
+
 - **Custom Error Classes**: ValidationError, AuthenticationError, NotFoundError, etc.
 - **Async Handler Wrapper**: Automatically catches and forwards errors
 - **Mongoose Error Handling**: Proper handling of DB validation and cast errors
@@ -217,6 +245,7 @@ The backend implements a comprehensive centralized error handling system:
 - **Development vs Production**: Different error detail levels
 
 ### Usage Example
+
 ```typescript
 import { asyncHandler, ValidationError } from '../middleware/errorHandler';
 
@@ -236,6 +265,7 @@ export const createBooking = asyncHandler(async (req: AuthRequest, res: Response
 ### Manual Testing Workflow
 
 1. **Registration/Login**
+
    ```bash
    # Register new customer
    curl -X POST http://localhost:5000/api/v1/auth/register \
@@ -255,7 +285,9 @@ export const createBooking = asyncHandler(async (req: AuthRequest, res: Response
    - Manage customers
 
 ### Test Data
+
 The system generates realistic test data including:
+
 - Booking numbers (format: CB-YYYYMMDD-XXXX)
 - Tracking numbers
 - Address validation
@@ -264,6 +296,7 @@ The system generates realistic test data including:
 ## 🔧 Development Scripts
 
 ### Backend Scripts
+
 ```bash
 npm run dev          # Start development server with nodemon
 npm run build        # Compile TypeScript to JavaScript
@@ -272,6 +305,7 @@ npm run test         # Run test suite (when implemented)
 ```
 
 ### Frontend Scripts
+
 ```bash
 npm run dev          # Start Vite development server
 npm run build        # Build for production
@@ -282,6 +316,7 @@ npm run lint         # Run ESLint
 ## 📈 Performance & Scalability
 
 ### Backend Optimizations
+
 - **Mongoose Indexing**: Optimized database queries
 - **Pagination**: Efficient data loading for large datasets
 - **Rate Limiting**: Prevents API abuse
@@ -289,6 +324,7 @@ npm run lint         # Run ESLint
 - **Caching Headers**: Appropriate cache control
 
 ### Frontend Optimizations
+
 - **Code Splitting**: Automatic route-based splitting
 - **Tree Shaking**: Unused code elimination
 - **Image Optimization**: Optimized asset loading
@@ -297,6 +333,7 @@ npm run lint         # Run ESLint
 ## 🔄 Current Status
 
 ### ✅ Completed Features
+
 - Full-stack application architecture
 - User authentication and authorization
 - Customer booking management
@@ -309,12 +346,14 @@ npm run lint         # Run ESLint
 - Database integration
 
 ### 🚧 In Progress
+
 - Enhanced testing suite
 - Email notifications
 - File upload capabilities
 - Advanced analytics
 
 ### 📋 Planned Features
+
 - SMS notifications
 - Real-time GPS tracking
 - Mobile application
@@ -333,6 +372,7 @@ npm run lint         # Run ESLint
 7. Push to your branch and create a Pull Request
 
 ### Development Guidelines
+
 - Follow the coding instructions in `.github/copilot-instructions.md`
 - Use TypeScript strictly (no `any` types)
 - Follow established error handling patterns

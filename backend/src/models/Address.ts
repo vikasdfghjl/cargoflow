@@ -70,6 +70,29 @@ const addressSchema = new Schema<IAddress>({
     type: String,
     trim: true,
     maxlength: 500
+  },
+  // Google Maps integration fields
+  coordinates: {
+    latitude: {
+      type: Number,
+      min: -90,
+      max: 90
+    },
+    longitude: {
+      type: Number,
+      min: -180,
+      max: 180
+    }
+  },
+  formattedAddress: {
+    type: String,
+    trim: true,
+    maxlength: 300
+  },
+  placeId: {
+    type: String,
+    trim: true,
+    maxlength: 100
   }
 }, {
   timestamps: true

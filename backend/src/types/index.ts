@@ -170,6 +170,13 @@ export interface IAddress extends Document {
   isDefault: boolean;
   landmark?: string;
   instructions?: string;
+  // Google Maps integration fields
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
+  formattedAddress?: string; // Address formatted by Google Places API
+  placeId?: string; // Google Places place ID for future reference
   createdAt: Date;
   updatedAt: Date;
 }

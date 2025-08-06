@@ -24,6 +24,10 @@ export const getAddresses = async (req: AuthRequest, res: Response): Promise<voi
       isDefault: address.isDefault,
       landmark: address.landmark,
       instructions: address.instructions,
+      // Google Maps integration fields
+      coordinates: address.coordinates,
+      formattedAddress: address.formattedAddress,
+      placeId: address.placeId,
       createdAt: address.createdAt,
       updatedAt: address.updatedAt
     }));
@@ -60,7 +64,11 @@ export const createAddress = async (req: AuthRequest, res: Response): Promise<vo
       country,
       isDefault,
       landmark,
-      instructions
+      instructions,
+      // Google Maps integration fields
+      coordinates,
+      formattedAddress,
+      placeId
     } = req.body;
 
     // If this is set as default, check if user has other addresses
@@ -84,7 +92,11 @@ export const createAddress = async (req: AuthRequest, res: Response): Promise<vo
       country: country || 'India',
       isDefault,
       landmark,
-      instructions
+      instructions,
+      // Google Maps integration fields
+      coordinates,
+      formattedAddress,
+      placeId
     });
 
     await address.save();
@@ -103,6 +115,10 @@ export const createAddress = async (req: AuthRequest, res: Response): Promise<vo
       isDefault: address.isDefault,
       landmark: address.landmark,
       instructions: address.instructions,
+      // Google Maps integration fields
+      coordinates: address.coordinates,
+      formattedAddress: address.formattedAddress,
+      placeId: address.placeId,
       createdAt: address.createdAt,
       updatedAt: address.updatedAt
     };
@@ -140,7 +156,11 @@ export const updateAddress = async (req: AuthRequest, res: Response): Promise<vo
       country,
       isDefault,
       landmark,
-      instructions
+      instructions,
+      // Google Maps integration fields
+      coordinates,
+      formattedAddress,
+      placeId
     } = req.body;
 
     // Find the address and ensure it belongs to the user
@@ -174,6 +194,10 @@ export const updateAddress = async (req: AuthRequest, res: Response): Promise<vo
     address.isDefault = isDefault;
     address.landmark = landmark;
     address.instructions = instructions;
+    // Google Maps integration fields
+    if (coordinates) address.coordinates = coordinates;
+    if (formattedAddress) address.formattedAddress = formattedAddress;
+    if (placeId) address.placeId = placeId;
 
     await address.save();
 
@@ -191,6 +215,10 @@ export const updateAddress = async (req: AuthRequest, res: Response): Promise<vo
       isDefault: address.isDefault,
       landmark: address.landmark,
       instructions: address.instructions,
+      // Google Maps integration fields
+      coordinates: address.coordinates,
+      formattedAddress: address.formattedAddress,
+      placeId: address.placeId,
       createdAt: address.createdAt,
       updatedAt: address.updatedAt
     };
