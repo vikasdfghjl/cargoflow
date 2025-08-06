@@ -55,6 +55,12 @@ interface Address {
   landmark?: string;
   instructions?: string;
   isDefault: boolean;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
+  formattedAddress?: string;
+  placeId?: string;
 }
 
 interface AddressSelectorProps {

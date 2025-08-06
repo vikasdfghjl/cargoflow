@@ -9,8 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import AddressSelector from "./AddressSelector";
 import { statelessBookingService } from "@/services/statelessBookingService";
-import { 
-  validateCompleteAddress,
+import { validateCompleteAddress,
   validateWeight,
   validateContactName,
   validatePhone,
@@ -23,11 +22,27 @@ import {
   formatAddressForAPI,
   AddressData
 } from "@/utils/validation";
+import { 
+  calculateDistance, 
+  isValidCoordinates, 
+  coordinatesChanged, 
+  getTruckRoutingInfo,
+  type Coordinates, 
+  type DistanceResult 
+} from "@/utils/distanceCalculation";
 
 // Local form data interface (no longer using DraftData from service)
 interface FormData {
-  pickupAddress: Partial<AddressData>;
-  deliveryAddress: Partial<AddressData>;
+  pickupAddress: Partial<AddressData> & {
+    coordinates?: Coordinates;
+    formattedAddress?: string;
+    placeId?: string;
+  };
+  deliveryAddress: Partial<AddressData> & {
+    coordinates?: Coordinates;
+    formattedAddress?: string;
+    placeId?: string;
+  };
   weight?: number;
   dimensions?: {
     length?: number;
@@ -40,6 +55,8 @@ interface FormData {
   specialInstructions?: string;
   insurance: boolean;
   insuranceValue?: number;
+  // Distance calculation fields
+  distance?: DistanceResult;
 }
 import { 
   MapPin, 
@@ -51,7 +68,8 @@ import {
   Shield,
   Zap,
   CheckCircle,
-  ArrowRight
+  ArrowRight,
+  Route
 } from "lucide-react";
 
 const NewBooking = () => {
@@ -64,7 +82,8 @@ const NewBooking = () => {
     pickupDate: undefined,
     specialInstructions: '',
     insurance: false,
-    insuranceValue: undefined
+    insuranceValue: undefined,
+    distance: undefined
   });
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -72,6 +91,10 @@ const NewBooking = () => {
   
   // Validation state
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  
+  // Distance calculation state
+  const [calculatingDistance, setCalculatingDistance] = useState(false);
+  const [distanceError, setDistanceError] = useState<string | null>(null);
 
   // Service type options
   const serviceTypes = [
@@ -100,6 +123,42 @@ const NewBooking = () => {
       features: ["Dedicated vehicle", "Live GPS tracking", "Insurance up to ₹25,000", "Direct contact with driver"]
     }
   ];
+
+  // Distance calculation function
+  const calculateDistanceBetweenAddresses = async (
+    pickup?: Coordinates,
+    delivery?: Coordinates
+  ) => {
+    if (!pickup || !delivery || !isValidCoordinates(pickup) || !isValidCoordinates(delivery)) {
+      return;
+    }
+
+    // Skip calculation if coordinates haven't changed significantly
+    if (formData.distance && 
+        !coordinatesChanged(pickup, formData.pickupAddress?.coordinates) &&
+        !coordinatesChanged(delivery, formData.deliveryAddress?.coordinates)) {
+      return;
+    }
+
+    setCalculatingDistance(true);
+    setDistanceError(null);
+
+    try {
+      const distanceResult = await calculateDistance(pickup, delivery);
+      setFormData(prev => ({
+        ...prev,
+        distance: distanceResult
+      }));
+      
+      // Clear any previous errors on successful calculation
+      setDistanceError(null);
+    } catch (error) {
+      console.error('Distance calculation error:', error);
+      setDistanceError('Unable to calculate distance. Please verify the addresses have valid coordinates.');
+    } finally {
+      setCalculatingDistance(false);
+    }
+  };
 
   // Validation helper function
   const validateField = (field: string, value: string | number) => {
@@ -294,9 +353,11 @@ const NewBooking = () => {
         pickupDate: undefined,
         specialInstructions: '',
         insurance: false,
-        insuranceValue: undefined
+        insuranceValue: undefined,
+        distance: undefined
       });
       setCurrentStep(1);
+      setDistanceError(null);
       
       alert('Booking created successfully!');
     } catch (error) {
@@ -324,13 +385,25 @@ const NewBooking = () => {
                   onChange={(value) => handleInputChange("pickupAddress.address", value)}
                   onAddressSelect={(address) => {
                     if (address) {
-                      handleInputChange("pickupAddress", {
+                      const updatedPickupAddress = {
                         address: address.street,
                         contactName: address.contactName,
                         phone: address.phone,
                         city: address.city,
-                        postalCode: address.zipCode
-                      });
+                        postalCode: address.zipCode,
+                        coordinates: address.coordinates,
+                        formattedAddress: address.formattedAddress,
+                        placeId: address.placeId
+                      };
+                      handleInputChange("pickupAddress", updatedPickupAddress);
+                      
+                      // Calculate distance if delivery address also has coordinates
+                      if (formData.deliveryAddress?.coordinates && address.coordinates) {
+                        calculateDistanceBetweenAddresses(
+                          address.coordinates,
+                          formData.deliveryAddress.coordinates
+                        );
+                      }
                     }
                   }}
                 />
@@ -400,13 +473,25 @@ const NewBooking = () => {
                   onChange={(value) => handleInputChange("deliveryAddress.address", value)}
                   onAddressSelect={(address) => {
                     if (address) {
-                      handleInputChange("deliveryAddress", {
+                      const updatedDeliveryAddress = {
                         address: address.street,
                         contactName: address.contactName,
                         phone: address.phone,
                         city: address.city,
-                        postalCode: address.zipCode
-                      });
+                        postalCode: address.zipCode,
+                        coordinates: address.coordinates,
+                        formattedAddress: address.formattedAddress,
+                        placeId: address.placeId
+                      };
+                      handleInputChange("deliveryAddress", updatedDeliveryAddress);
+                      
+                      // Calculate distance if pickup address also has coordinates
+                      if (formData.pickupAddress?.coordinates && address.coordinates) {
+                        calculateDistanceBetweenAddresses(
+                          formData.pickupAddress.coordinates,
+                          address.coordinates
+                        );
+                      }
                     }
                   }}
                 />
@@ -485,6 +570,71 @@ const NewBooking = () => {
                     <option value="fragile">Fragile Items</option>
                     <option value="bulk">Bulk Items</option>
                   </select>
+                </div>
+
+                {/* Distance Display */}
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Route className="h-5 w-5 text-blue-600" />
+                    <Label className="text-base font-medium text-gray-900">Distance</Label>
+                  </div>
+                  
+                  {calculatingDistance ? (
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      <span className="text-sm">Calculating distance...</span>
+                    </div>
+                  ) : formData.distance ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">Total Distance:</span>
+                        <span className="text-lg font-semibold text-gray-900">
+                          {formData.distance.formattedDistance}
+                        </span>
+                      </div>
+                      <div className="border-t border-gray-200 pt-2">
+                        <div className="flex items-center gap-1 text-xs text-gray-500 mb-1">
+                          <span>Routing Method:</span>
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs ${
+                              formData.distance.method === 'google_maps_truck' 
+                                ? 'border-green-500 text-green-700 bg-green-50' 
+                                : formData.distance.method === 'google_maps'
+                                ? 'border-blue-500 text-blue-700 bg-blue-50'
+                                : 'border-gray-500 text-gray-700 bg-gray-50'
+                            }`}
+                          >
+                            {getTruckRoutingInfo(formData.distance).routingType}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {getTruckRoutingInfo(formData.distance).adjustmentInfo}
+                        </div>
+                        {formData.distance.method === 'google_maps_truck' && (
+                          <div className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                            <Truck className="h-3 w-3" />
+                            <span>Optimized for commercial vehicles</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : distanceError ? (
+                    <div className="text-sm text-red-600 flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      {distanceError}
+                    </div>
+                  ) : formData.pickupAddress?.address && formData.deliveryAddress?.address ? (
+                    <div className="text-sm text-gray-500 flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Select addresses with coordinates to calculate distance
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500 flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Complete pickup and delivery addresses to see distance
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
