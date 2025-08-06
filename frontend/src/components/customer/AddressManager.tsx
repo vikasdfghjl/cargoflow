@@ -64,27 +64,25 @@ interface Coordinates {
 interface Address {
   _id?: string;
   label: string;
-  type: 'pickup' | 'delivery' | 'warehouse' | 'office' | 'residential';
-  addressLine1: string;
-  addressLine2?: string;
+  type: 'home' | 'office' | 'warehouse' | 'other';
+  street: string; // Changed from addressLine1 to match backend
+  addressLine2?: string; // This will be stored in landmark or instructions
   city: string;
   state: string;
   zipCode: string;
   country: string;
-  contactPerson?: string;
-  contactPhone?: string;
-  notes?: string;
+  contactName: string; // Required field matching backend
+  phone: string; // Required field matching backend
+  landmark?: string;
+  instructions?: string;
   isDefault: boolean;
   coordinates?: Coordinates;
   formattedAddress?: string;
   placeId?: string;
 }
 
-interface FormData extends Address {
-  contactName: string;
-  phone: string;
-  instructions: string;
-}
+// FormData is now identical to Address since we aligned with backend schema
+type FormData = Address;
 
 // Validation errors interface
 interface ValidationErrors {
@@ -110,20 +108,21 @@ const AddressManager: React.FC = () => {
   // Form data with refs pattern for stable LocationPicker integration
   const formDataRef = useRef<FormData>({
     label: '',
-    type: 'pickup',
-    addressLine1: '',
+    type: 'home', // Changed from 'pickup' to match backend enum
+    street: '', // Changed from addressLine1 to match backend
     addressLine2: '',
     city: '',
     state: '',
     zipCode: '',
-    country: '',
-    contactPerson: '',
-    contactPhone: '',
-    contactName: '',
-    phone: '',
-    notes: '',
+    country: 'India',
+    contactName: '', // Required field
+    phone: '', // Required field
+    landmark: '',
     instructions: '',
-    isDefault: false
+    isDefault: false,
+    coordinates: undefined,
+    formattedAddress: '',
+    placeId: undefined
   });
   
   const [formData, setFormData] = useState<FormData>(formDataRef.current);
@@ -139,7 +138,7 @@ const AddressManager: React.FC = () => {
       formattedAddress: locationData.formattedAddress || '',
       placeId: locationData.placeId || '',
       // Auto-fill address fields if available from geocoding
-      addressLine1: locationData.addressComponents?.street || formDataRef.current.addressLine1,
+      street: locationData.addressComponents?.street || formDataRef.current.street, // Changed from addressLine1
       city: locationData.addressComponents?.city || formDataRef.current.city,
       state: locationData.addressComponents?.state || formDataRef.current.state,
       zipCode: locationData.addressComponents?.zipCode || formDataRef.current.zipCode,
@@ -171,22 +170,23 @@ const AddressManager: React.FC = () => {
   };
 
   const openAddDialog = () => {
-    const initialData = {
+    const initialData: FormData = {
       label: '',
-      type: 'pickup' as const,
-      addressLine1: '',
+      type: 'home' as const, // Changed to match backend enum
+      street: '', // Changed from addressLine1
       addressLine2: '',
       city: '',
       state: '',
       zipCode: '',
-      country: '',
-      contactPerson: '',
-      contactPhone: '',
-      contactName: '',
-      phone: '',
-      notes: '',
+      country: 'India',
+      contactName: '', // Required field
+      phone: '', // Required field
+      landmark: '',
       instructions: '',
-      isDefault: false
+      isDefault: false,
+      coordinates: undefined,
+      formattedAddress: '',
+      placeId: undefined
     };
     formDataRef.current = initialData;
     setFormData(initialData);
@@ -196,11 +196,12 @@ const AddressManager: React.FC = () => {
   };
 
   const openEditDialog = (address: Address) => {
-    const editData = {
+    const editData: FormData = {
       ...address,
-      contactName: address.contactPerson || '',
-      phone: address.contactPhone || '',
-      instructions: address.notes || ''
+      // Address already has the correct field names, just ensure all required fields are present
+      contactName: address.contactName || '', // Should already be correct
+      phone: address.phone || '', // Should already be correct
+      instructions: address.instructions || ''
     };
     formDataRef.current = editData;
     setFormData(editData);
@@ -250,23 +251,59 @@ const AddressManager: React.FC = () => {
   const validateForm = (data: FormData): ValidationErrors => {
     const errors: ValidationErrors = {};
 
-    // Validate contact name
-    if (data.contactName.trim()) {
+    // Validate required field: label
+    if (!data.label || data.label.trim().length === 0) {
+      errors.label = 'Address label is required';
+    }
+
+    // Validate required field: street address
+    if (!data.street || data.street.trim().length === 0) {
+      errors.street = 'Street address is required';
+    } else if (data.street.trim().length < 5 || data.street.trim().length > 200) {
+      errors.street = 'Street address must be between 5 and 200 characters';
+    }
+
+    // Validate required field: contact name
+    if (!data.contactName || data.contactName.trim().length === 0) {
+      errors.contactName = 'Contact name is required';
+    } else {
       const nameValidation = validateContactName(data.contactName);
       if (!nameValidation.isValid) {
         errors.contactName = nameValidation.error || 'Invalid contact name';
       }
     }
 
-    // Validate phone
-    if (data.phone.trim()) {
+    // Validate required field: phone
+    if (!data.phone || data.phone.trim().length === 0) {
+      errors.phone = 'Phone number is required';
+    } else {
       const phoneValidation = validatePhone(data.phone);
       if (!phoneValidation.isValid) {
         errors.phone = phoneValidation.error || 'Invalid phone number';
       }
     }
 
-    // Validate postal code
+    // Validate required field: type
+    if (!data.type || data.type.trim().length === 0) {
+      errors.type = 'Address type is required';
+    }
+
+    // Validate required field: city
+    if (!data.city || data.city.trim().length === 0) {
+      errors.city = 'City is required';
+    }
+
+    // Validate required field: state
+    if (!data.state || data.state.trim().length === 0) {
+      errors.state = 'State is required';
+    }
+
+    // Validate required field: country
+    if (!data.country || data.country.trim().length === 0) {
+      errors.country = 'Country is required';
+    }
+
+    // Validate postal code (optional but validate format if provided)
     if (data.zipCode.trim()) {
       const postalValidation = validatePostalCode(data.zipCode);
       if (!postalValidation.isValid) {
@@ -291,19 +328,19 @@ const AddressManager: React.FC = () => {
     setSubmitting(true);
     
     try {
-      // Prepare address data for API
+      // Prepare address data for API - match backend schema field names exactly
       const addressData: Partial<Address> = {
         label: formData.label,
         type: formData.type,
-        addressLine1: formData.addressLine1,
-        addressLine2: formData.addressLine2,
+        street: formData.street, // Direct mapping now
         city: formData.city,
         state: formData.state,
         zipCode: formatPostalCodeForAPI(formData.zipCode),
         country: formData.country,
-        contactPerson: formatContactNameForAPI(formData.contactName || formData.contactPerson || ''),
-        contactPhone: formatPhoneForAPI(formData.phone || formData.contactPhone || ''),
-        notes: formData.instructions || formData.notes,
+        contactName: formatContactNameForAPI(formData.contactName || ''),
+        phone: formatPhoneForAPI(formData.phone || ''),
+        landmark: formData.addressLine2 || formData.landmark, // Map addressLine2 to landmark
+        instructions: formData.instructions,
         isDefault: formData.isDefault,
         coordinates: formData.coordinates,
         formattedAddress: formData.formattedAddress,
@@ -367,11 +404,10 @@ const AddressManager: React.FC = () => {
 
   const getAddressTypeBadgeColor = (type: string) => {
     switch (type) {
-      case 'pickup': return 'bg-green-100 text-green-800';
-      case 'delivery': return 'bg-blue-100 text-blue-800';
+      case 'home': return 'bg-green-100 text-green-800';
+      case 'office': return 'bg-blue-100 text-blue-800';
       case 'warehouse': return 'bg-orange-100 text-orange-800';
-      case 'office': return 'bg-purple-100 text-purple-800';
-      case 'residential': return 'bg-gray-100 text-gray-800';
+      case 'other': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -493,26 +529,29 @@ const AddressManager: React.FC = () => {
                             <SelectValue placeholder="Select type" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="pickup">Pickup Location</SelectItem>
-                            <SelectItem value="delivery">Delivery Location</SelectItem>
-                            <SelectItem value="warehouse">Warehouse</SelectItem>
+                            <SelectItem value="home">Home</SelectItem>
                             <SelectItem value="office">Office</SelectItem>
-                            <SelectItem value="residential">Residential</SelectItem>
+                            <SelectItem value="warehouse">Warehouse</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="addressLine1">Street Address *</Label>
+                      <Label htmlFor="street">Street Address *</Label>
                       <Input
-                        id="addressLine1"
-                        name="addressLine1"
-                        value={formData.addressLine1}
+                        id="street"
+                        name="street"
+                        value={formData.street}
                         onChange={handleInputChange}
                         placeholder="House/Building number and street name"
                         required
+                        className={validationErrors.street ? 'border-red-500' : ''}
                       />
+                      {validationErrors.street && (
+                        <p className="text-sm text-red-600">{validationErrors.street}</p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -588,13 +627,14 @@ const AddressManager: React.FC = () => {
                         <Label className="text-base font-medium">Contact Information</Label>
                       </div>                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="contactName">Contact Person</Label>
+                        <Label htmlFor="contactName">Contact Person *</Label>
                         <Input
                           id="contactName"
                           name="contactName"
                           value={formData.contactName}
                           onChange={handleInputChange}
                           placeholder="Contact person name"
+                          required
                           className={validationErrors.contactName ? 'border-red-500' : ''}
                         />
                         {validationErrors.contactName && (
@@ -603,13 +643,14 @@ const AddressManager: React.FC = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="phone">Contact Phone</Label>
+                        <Label htmlFor="phone">Contact Phone *</Label>
                         <Input
                           id="phone"
                           name="phone"
                           value={formData.phone}
                           onChange={handleInputChange}
                           placeholder="Phone number"
+                          required
                           className={validationErrors.phone ? 'border-red-500' : ''}
                         />
                         {validationErrors.phone && (
@@ -744,24 +785,24 @@ const AddressManager: React.FC = () => {
                   </CardHeader>
                   <CardContent className="pt-0">
                     <div className="space-y-2 text-sm text-gray-600">
-                      <div>{address.addressLine1}</div>
+                      <div>{address.street}</div>
                       {address.addressLine2 && <div>{address.addressLine2}</div>}
                       <div>{address.city}, {address.state} {address.zipCode}</div>
                       <div>{address.country}</div>
                       
-                      {address.contactPerson && (
+                      {address.contactName && (
                         <div className="flex items-center gap-1 mt-2">
                           <Phone className="h-3 w-3" />
-                          <span>{address.contactPerson}</span>
-                          {address.contactPhone && (
-                            <span className="text-gray-500">• {address.contactPhone}</span>
+                          <span>{address.contactName}</span>
+                          {address.phone && (
+                            <span className="text-gray-500">• {address.phone}</span>
                           )}
                         </div>
                       )}
                       
-                      {address.notes && (
+                      {address.instructions && (
                         <div className="text-gray-500 text-xs mt-2 italic">
-                          {address.notes}
+                          {address.instructions}
                         </div>
                       )}
                     </div>
