@@ -20,6 +20,7 @@ import {
   sendCreatedResponse, 
   RESPONSE_MESSAGES 
 } from '../utils/responseUtils';
+import { log } from '../lib/logger';
 
 // Pricing calculation function
 function calculateBookingPrice(bookingData: any) {
@@ -58,7 +59,8 @@ export const createBooking = asyncHandler(async (req: AuthRequest, res: Response
   }
 
   const bookingData = req.body;
-  console.log('Received booking data:', JSON.stringify(bookingData, null, 2));
+    log.debug('Received booking data', { bookingData });
+  log.debug('Received booking data', { bookingData });
   
   // For customers, automatically set customerId to their own user ID
   // For admins, they can specify customerId or it defaults to their own ID
@@ -162,8 +164,8 @@ export const createBooking = asyncHandler(async (req: AuthRequest, res: Response
         StatelessSessionService.deleteSession(session.sessionId)
       )
     ).catch(error => {
-      console.error('Draft cleanup error (non-blocking):', error);
-    });
+      log.warn('Draft cleanup error (non-blocking)', { error: (error as Error).message });
+  });
   }
 
   // Send successful response
@@ -201,7 +203,7 @@ export const saveDraft = async (req: AuthRequest, res: Response): Promise<void> 
       data: { draftId: savedDraftId }
     } as ApiResponse<{ draftId: string }>);
   } catch (error) {
-    console.error('Save draft error:', error);
+  log.error('Save draft error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -246,7 +248,7 @@ export const getDraft = async (req: AuthRequest, res: Response): Promise<void> =
       data: draftData
     } as ApiResponse);
   } catch (error) {
-    console.error('Get draft error:', error);
+  log.error('Get draft error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -274,7 +276,7 @@ export const getUserDrafts = async (req: AuthRequest, res: Response): Promise<vo
       data: drafts
     } as ApiResponse);
   } catch (error) {
-    console.error('Get user drafts error:', error);
+  log.error('Get user drafts error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -318,7 +320,7 @@ export const deleteDraft = async (req: AuthRequest, res: Response): Promise<void
       message: 'Draft deleted successfully'
     } as ApiResponse);
   } catch (error) {
-    console.error('Delete draft error:', error);
+  log.error('Delete draft error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -361,7 +363,7 @@ export const autoSaveDraft = async (req: AuthRequest, res: Response): Promise<vo
       }
     } as ApiResponse);
   } catch (error) {
-    console.error('Auto-save draft error:', error);
+  log.error('Auto-save draft error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -412,7 +414,7 @@ export const getBookingById = async (req: AuthRequest, res: Response): Promise<v
       data: booking
     } as ApiResponse);
   } catch (error) {
-    console.error('Get booking error:', error);
+  log.error('Get booking error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -476,7 +478,7 @@ export const getUserBookings = async (req: AuthRequest, res: Response): Promise<
       }
     } as ApiResponse);
   } catch (error) {
-    console.error('Get user bookings error:', error);
+  log.error('Get user bookings error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -544,7 +546,7 @@ export const getAllBookings = async (req: AuthRequest, res: Response): Promise<v
       }
     } as ApiResponse);
   } catch (error) {
-    console.error('Get all bookings error:', error);
+  log.error('Get all bookings error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -634,7 +636,7 @@ export const updateBookingStatus = async (req: AuthRequest, res: Response): Prom
           }
         }
       } catch (driverUpdateError) {
-        console.error('Error updating driver total deliveries:', driverUpdateError);
+  log.warn('Error updating driver total deliveries', { error: (driverUpdateError as Error).message });
         // Continue execution even if driver update fails - we don't want to fail the booking update
       }
     }
@@ -645,7 +647,7 @@ export const updateBookingStatus = async (req: AuthRequest, res: Response): Prom
       data: booking
     } as ApiResponse);
   } catch (error) {
-    console.error('Update booking status error:', error);
+  log.error('Update booking status error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Server error'
@@ -703,7 +705,7 @@ export const deleteBooking = async (req: AuthRequest, res: Response): Promise<vo
       message: 'Booking deleted successfully'
     } as ApiResponse);
   } catch (error) {
-    console.error('Delete booking error:', error);
+  log.error('Delete booking error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Server error'

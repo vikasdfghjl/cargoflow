@@ -7,6 +7,7 @@ import mongoSanitize from 'express-mongo-sanitize';
 import hpp from 'hpp';
 import dotenv from 'dotenv';
 import connectDB from './config/database';
+import { log } from './lib/logger';
 import errorHandler from './middleware/errorHandler';
 import authRoutes from './routes/auth';
 import addressRoutes from './routes/address';
@@ -119,7 +120,7 @@ app.use(express.urlencoded({
 app.use(mongoSanitize({
   replaceWith: '_', // Replace prohibited characters with underscore
   onSanitize: ({ key, req }: { key: string; req: any }) => {
-    console.warn(`🚨 NoSQL injection attempt detected on key: ${key} from ${req.ip || 'unknown IP'}`);
+  log.warn('NoSQL injection attempt detected', { key, ip: req.ip || 'unknown IP' });
   }
 }));
 
@@ -167,20 +168,22 @@ app.use(errorHandler);
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 CargoFlow API server running on port ${PORT}`);
-  console.log(`📋 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-  console.log(`📚 API base URL: http://localhost:${PORT}/api/${apiVersion}`);
+  log.info('CargoFlow API server started', {
+    port: PORT,
+    env: process.env.NODE_ENV || 'development',
+    health: `http://localhost:${PORT}/health`,
+    apiBase: `http://localhost:${PORT}/api/${apiVersion}`
+  });
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received. Shutting down gracefully...');
+  log.info('SIGTERM received. Shutting down gracefully...');
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
-  console.log('SIGINT received. Shutting down gracefully...');
+  log.info('SIGINT received. Shutting down gracefully...');
   process.exit(0);
 });
 

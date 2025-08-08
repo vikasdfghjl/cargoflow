@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { log } from '../lib/logger';
 import { ApiResponse } from '../types';
 
 // Base application error class
@@ -103,26 +104,19 @@ const logError = (err: any, req: Request): void => {
   const userAgent = req.get('User-Agent') || 'Unknown';
   const ip = req.ip || req.connection.remoteAddress || 'Unknown';
 
-  console.error(`
-🚨 ERROR OCCURRED 🚨
-Timestamp: ${timestamp}
-Method: ${method}
-URL: ${url}
-IP: ${ip}
-User-Agent: ${userAgent}
-Error Name: ${err.name}
-Error Message: ${err.message}
-Status Code: ${err.statusCode || 500}
-Stack: ${err.stack}
-${err.isOperational ? '✅ Operational Error' : '❌ Programming Error'}
-${'='.repeat(80)}
-  `);
-
-  // In production, you might want to send this to a logging service
-  if (process.env.NODE_ENV === 'production') {
-    // Send to logging service (e.g., Winston, Sentry, etc.)
-    // Example: logger.error({ error: err, request: { method, url, ip, userAgent } });
-  }
+  // Structured error log
+  log.error('Unhandled error captured', {
+    timestamp,
+    method,
+    url,
+    ip,
+    userAgent,
+    name: err.name,
+    message: err.message,
+    statusCode: err.statusCode || 500,
+    stack: err.stack,
+    operational: !!err.isOperational,
+  });
 };
 
 // Main error handling middleware
@@ -194,17 +188,13 @@ export const asyncHandler = (fn: Function) => {
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (err: Error) => {
-  console.error('💥 UNCAUGHT EXCEPTION! Shutting down...');
-  console.error(err.name, err.message);
-  console.error(err.stack);
+  log.error('UNCAUGHT EXCEPTION! Shutting down...', { name: err.name, message: err.message, stack: err.stack });
   process.exit(1);
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err: any) => {
-  console.error('💥 UNHANDLED REJECTION! Shutting down...');
-  console.error(err.name, err.message);
-  console.error(err.stack);
+  log.error('UNHANDLED REJECTION! Shutting down...', { name: err?.name, message: err?.message, stack: err?.stack });
   process.exit(1);
 });
 

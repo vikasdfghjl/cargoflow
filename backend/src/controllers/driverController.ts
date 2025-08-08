@@ -1,3 +1,4 @@
+import { log } from '../lib/logger';
 import { Request, Response, NextFunction } from 'express';
 import DriverService from '../services/DriverService';
 import Driver from '../models/Driver';
@@ -382,7 +383,7 @@ export const assignDriverToBooking = asyncHandler(async (req: AuthenticatedReque
         { new: true }
       );
     } catch (driverUpdateError) {
-      console.error('Error updating driver total deliveries during reassignment:', driverUpdateError);
+  log.warn('Error updating driver total deliveries during reassignment', { error: (driverUpdateError as Error).message });
       // Continue execution even if driver update fails
     }
   }

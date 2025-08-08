@@ -48,7 +48,7 @@ A comprehensive B2B transport and logistics management platform built with moder
 - **JWT** authentication with bcryptjs
 - **Centralized Error Handling** middleware
 - **Rate Limiting** and security middleware
-- **Comprehensive Logging** system
+- **Structured Logging** with Winston (JSON, levels, rotation)
 
 ## 🏗️ Architecture
 
@@ -150,6 +150,7 @@ MONGODB_URI=mongodb://localhost:27017/cargoflow
 JWT_SECRET=your_super_secret_jwt_key_minimum_32_characters
 CORS_ORIGIN=http://localhost:3000
 API_VERSION=v1
+LOG_LEVEL=debug
 ```
 
 Create `.env` file in the frontend directory:
@@ -204,9 +205,9 @@ Each customer user comes with 3 pre-configured addresses (home, office, warehous
 
 ### 4. Access the Application
 
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:5000
-- **Health Check**: http://localhost:5000/health
+- **Frontend**: <http://localhost:3000>
+- **Backend API**: <http://localhost:5000>
+- **Health Check**: <http://localhost:5000/health>
 
 ## 🔐 Authentication & Authorization
 
@@ -358,7 +359,6 @@ npm run lint         # Run ESLint
 - Real-time GPS tracking
 - Mobile application
 - Payment gateway integration
-- Multi-language support
 - Advanced reporting
 
 ## 🤝 Contributing
@@ -397,6 +397,51 @@ npm run lint         # Run ESLint
 ### Debug Mode
 Enable debug logging by setting `NODE_ENV=development` in backend `.env`
 
+## 📝 Structured Logging (Winston)
+
+The backend uses Winston for production-grade, structured logging:
+
+- JSON logs with timestamps and fields for easy parsing
+- Log levels: `debug`, `info`, `warn`, `error`
+- Environment-aware behavior:
+   - Development: pretty colored console logs + JSON file logs
+   - Production: structured console logs + JSON file logs
+- File rotation keeps logs manageable
+
+Log locations (auto-created):
+
+- `backend/logs/app-YYYY-MM-DD.log` (level ≥ info)
+- `backend/logs/error-YYYY-MM-DD.log` (level ≥ error)
+
+Configure via env:
+
+```env
+NODE_ENV=production   # switches logger to production mode
+LOG_LEVEL=info        # optional override; default is info in prod, debug in dev
+```
+
+Tail logs on Windows PowerShell:
+
+```powershell
+Get-Content .\backend\logs\app-$(Get-Date -Format 'yyyy-MM-dd').log -Tail 50 -Wait
+Get-Content .\backend\logs\error-$(Get-Date -Format 'yyyy-MM-dd').log -Tail 50 -Wait
+```
+
+## 🚀 Production Run
+
+When deploying:
+
+1. Build and start the backend in production mode
+
+```powershell
+cd backend
+npm run build
+$env:NODE_ENV = 'production'; npm start
+```
+
+1. Ensure env vars are set: `PORT`, `MONGODB_URI`, `JWT_SECRET`, `CORS_ORIGIN`, `API_VERSION`, optional `LOG_LEVEL`.
+2. Use a process manager (PM2/systemd/Docker) and ensure `backend/logs/` is writable or mounted.
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
@@ -404,14 +449,11 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 📞 Support
 
 For support, questions, or contributions:
+
 - Open an issue in the GitHub repository
 - Contact the development team
 - Check the documentation files for detailed guidance
 
 ---
 
-**Built with ❤️ for modern logistics management**
-
----
-
-**Built with ❤️ for modern logistics management**
+### Built with ❤️ for modern logistics management

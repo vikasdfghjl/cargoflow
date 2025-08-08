@@ -1,3 +1,4 @@
+import { log } from '../lib/logger';
 import { Request, Response, NextFunction } from 'express';
 import RateLimit from '../models/RateLimit';
 
@@ -85,7 +86,7 @@ export const createRateLimiter = (options: RateLimitOptions) => {
       next();
     } catch (error) {
       // Log error but don't block the request
-      console.error('Rate limiting error:', error);
+  log.error('Rate limiting error', { error: (error as Error).message });
       next();
     }
   };

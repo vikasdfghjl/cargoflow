@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { log } from '../lib/logger';
 
 const connectDB = async (): Promise<void> => {
   try {
@@ -11,26 +12,25 @@ const connectDB = async (): Promise<void> => {
 
     const conn = await mongoose.connect(mongoURI, options);
 
-    console.log(`🎯 MongoDB Connected: ${conn.connection.host}`);
-    console.log(`📦 Database: ${conn.connection.name}`);
+  log.info('MongoDB connected', { host: conn.connection.host, db: conn.connection.name });
 
     // Handle connection events
     mongoose.connection.on('error', (err) => {
-      console.error('❌ MongoDB connection error:', err);
+      log.error('MongoDB connection error', { error: (err as Error).message });
     });
 
     mongoose.connection.on('disconnected', () => {
-      console.log('🔌 MongoDB disconnected');
+      log.warn('MongoDB disconnected');
     });
 
     process.on('SIGINT', async () => {
       await mongoose.connection.close();
-      console.log('🔒 MongoDB connection closed due to app termination');
+      log.info('MongoDB connection closed due to app termination');
       process.exit(0);
     });
 
   } catch (error) {
-    console.error('❌ MongoDB connection failed:', error);
+    log.error('MongoDB connection failed', { error: (error as Error).message });
     process.exit(1);
   }
 };

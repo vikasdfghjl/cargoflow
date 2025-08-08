@@ -1,3 +1,4 @@
+import { log } from '../lib/logger';
 import { Response } from 'express';
 import Address from '../models/Address';
 import { AuthRequest, ApiResponse } from '../types';
@@ -39,7 +40,7 @@ export const getAddresses = async (req: AuthRequest, res: Response): Promise<voi
     } as ApiResponse);
 
   } catch (error: any) {
-    console.error('Get addresses error:', error);
+  log.error('Get addresses error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve addresses',
@@ -130,7 +131,7 @@ export const createAddress = async (req: AuthRequest, res: Response): Promise<vo
     } as ApiResponse);
 
   } catch (error: any) {
-    console.error('Create address error:', error);
+  log.error('Create address error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Failed to create address',
@@ -230,7 +231,7 @@ export const updateAddress = async (req: AuthRequest, res: Response): Promise<vo
     } as ApiResponse);
 
   } catch (error: any) {
-    console.error('Update address error:', error);
+  log.error('Update address error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Failed to update address',
@@ -270,7 +271,7 @@ export const deleteAddress = async (req: AuthRequest, res: Response): Promise<vo
     } as ApiResponse);
 
   } catch (error: any) {
-    console.error('Delete address error:', error);
+  log.error('Delete address error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Failed to delete address',
@@ -311,7 +312,7 @@ export const setDefaultAddress = async (req: AuthRequest, res: Response): Promis
     } as ApiResponse);
 
   } catch (error: any) {
-    console.error('Set default address error:', error);
+  log.error('Set default address error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Failed to set default address',

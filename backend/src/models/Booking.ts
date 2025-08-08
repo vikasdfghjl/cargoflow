@@ -1,4 +1,5 @@
 import { Schema, model, Document, Types } from 'mongoose';
+import { log } from '../lib/logger';
 
 export interface IBooking extends Document {
   _id: Types.ObjectId;
@@ -207,14 +208,13 @@ const bookingSchema = new Schema<IBooking>({
 bookingSchema.index({ customerId: 1, createdAt: -1 });
 bookingSchema.index({ status: 1, createdAt: -1 });
 bookingSchema.index({ pickupDate: 1, status: 1 });
-bookingSchema.index({ trackingNumber: 1 });
 
 // Generate booking number before saving
 bookingSchema.pre('save', async function(next) {
-  console.log('Pre-save hook called, isNew:', this.isNew, 'bookingNumber:', this.bookingNumber);
+  log.debug('Pre-save hook called', { isNew: this.isNew, bookingNumber: this.bookingNumber });
   
   if (this.isNew && !this.bookingNumber) {
-    console.log('Generating booking number...');
+    log.debug('Generating booking number...');
     const date = new Date();
     const year = date.getFullYear().toString().slice(-2);
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -232,8 +232,8 @@ bookingSchema.pre('save', async function(next) {
       sequence = lastSequence + 1;
     }
     
-    this.bookingNumber = `CPP${year}${month}${day}${sequence.toString().padStart(4, '0')}`;
-    console.log('Generated booking number:', this.bookingNumber);
+  this.bookingNumber = `CPP${year}${month}${day}${sequence.toString().padStart(4, '0')}`;
+  log.debug('Generated booking number', { bookingNumber: this.bookingNumber });
   }
   
   // Ensure booking number is always set

@@ -1,3 +1,4 @@
+import { log } from '../lib/logger';
 import { Response } from 'express';
 import Invoice from '../models/Invoice';
 import User from '../models/User';
@@ -104,7 +105,7 @@ export const getAllInvoices = async (req: AuthRequest, res: Response): Promise<v
     } as ApiResponse);
 
   } catch (error: any) {
-    console.error('Get invoices error:', error);
+  log.error('Get invoices error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve invoices',
@@ -168,7 +169,7 @@ export const getInvoiceDetails = async (req: AuthRequest, res: Response): Promis
     } as ApiResponse);
 
   } catch (error: any) {
-    console.error('Get invoice details error:', error);
+  log.error('Get invoice details error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve invoice details',
@@ -290,7 +291,7 @@ export const createInvoice = async (req: AuthRequest, res: Response): Promise<vo
     } as ApiResponse);
 
   } catch (error: any) {
-    console.error('Create invoice error:', error);
+  log.error('Create invoice error', { error: (error as Error).message });
     
     if (error.name === 'ValidationError') {
       const validationErrors = Object.values(error.errors).map((err: any) => err.message);
@@ -404,7 +405,7 @@ export const updateInvoice = async (req: AuthRequest, res: Response): Promise<vo
     } as ApiResponse);
 
   } catch (error: any) {
-    console.error('Update invoice error:', error);
+  log.error('Update invoice error', { error: (error as Error).message });
     
     if (error.name === 'ValidationError') {
       const validationErrors = Object.values(error.errors).map((err: any) => err.message);
@@ -527,7 +528,7 @@ export const generateInvoiceFromBookings = async (req: AuthRequest, res: Respons
     } as ApiResponse);
 
   } catch (error: any) {
-    console.error('Generate invoice from bookings error:', error);
+  log.error('Generate invoice from bookings error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Failed to generate invoice from bookings',
@@ -575,7 +576,7 @@ export const deleteInvoice = async (req: AuthRequest, res: Response): Promise<vo
     } as ApiResponse);
 
   } catch (error: any) {
-    console.error('Delete invoice error:', error);
+  log.error('Delete invoice error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Failed to delete invoice',
@@ -653,7 +654,7 @@ export const getInvoiceStats = async (req: AuthRequest, res: Response): Promise<
     } as ApiResponse);
 
   } catch (error: any) {
-    console.error('Get invoice stats error:', error);
+  log.error('Get invoice stats error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve invoice statistics',
@@ -743,7 +744,7 @@ export const getCustomerInvoices = async (req: AuthRequest, res: Response): Prom
     } as ApiResponse);
 
   } catch (error: any) {
-    console.error('Get customer invoices error:', error);
+  log.error('Get customer invoices error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve customer invoices',
@@ -816,7 +817,7 @@ export const getCustomerInvoiceDetails = async (req: AuthRequest, res: Response)
     } as ApiResponse);
 
   } catch (error: any) {
-    console.error('Get customer invoice details error:', error);
+  log.error('Get customer invoice details error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve customer invoice details',

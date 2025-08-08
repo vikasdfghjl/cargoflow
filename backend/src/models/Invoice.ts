@@ -1,3 +1,4 @@
+import { log } from '../lib/logger';
 import mongoose, { Schema, Document } from 'mongoose';
 
 // Invoice interface for the model
@@ -152,7 +153,7 @@ invoiceSchema.pre<IInvoice>('save', async function(next) {
       
       this.invoiceNumber = `INV-${currentYear}-${String(count + 1).padStart(4, '0')}`;
     } catch (error) {
-      console.error('Error generating invoice number:', error);
+  log.error('Error generating invoice number', { error: (error as Error).message });
       return next(error as mongoose.CallbackError);
     }
   }

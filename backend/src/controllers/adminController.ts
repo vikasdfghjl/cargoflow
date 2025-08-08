@@ -1,3 +1,4 @@
+import { log } from '../lib/logger';
 import { Response } from 'express';
 import User from '../models/User';
 import Booking from '../models/Booking';
@@ -94,7 +95,7 @@ export const getAllCustomers = async (req: AuthRequest, res: Response): Promise<
     } as ApiResponse);
 
   } catch (error: any) {
-    console.error('Get customers error:', error);
+  log.error('Get customers error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve customers',
@@ -193,7 +194,7 @@ export const getCustomerDetails = async (req: AuthRequest, res: Response): Promi
     } as ApiResponse);
 
   } catch (error: any) {
-    console.error('Get customer details error:', error);
+  log.error('Get customer details error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve customer details',
@@ -243,7 +244,7 @@ export const updateCustomerStatus = async (req: AuthRequest, res: Response): Pro
     } as ApiResponse);
 
   } catch (error: any) {
-    console.error('Update customer status error:', error);
+  log.error('Update customer status error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Failed to update customer status',
@@ -378,7 +379,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
     } as ApiResponse);
 
   } catch (error: any) {
-    console.error('Get dashboard stats error:', error);
+  log.error('Get dashboard stats error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve dashboard statistics',
@@ -488,7 +489,7 @@ export const getCustomerBookings = async (req: AuthRequest, res: Response): Prom
     } as ApiResponse);
 
   } catch (error: any) {
-    console.error('Get customer bookings error:', error);
+  log.error('Get customer bookings error', { error: (error as Error).message });
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve customer bookings',
@@ -599,7 +600,7 @@ export const updateCustomer = async (req: AuthRequest, res: Response): Promise<v
     } as ApiResponse);
 
   } catch (error: any) {
-    console.error('Update customer error:', error);
+  log.error('Update customer error', { error: (error as Error).message });
     
     // Handle validation errors
     if (error.name === 'ValidationError') {

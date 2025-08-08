@@ -1,3 +1,4 @@
+import { log } from '../lib/logger';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
@@ -69,7 +70,7 @@ export const authenticate = async (
 
     next();
   } catch (error: any) {
-    console.error('Authentication error:', error);
+  log.error('Authentication error', { error: (error as Error).message });
     
     if (error.name === 'JsonWebTokenError') {
       res.status(401).json({
