@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import User from '../models/User';
 import Booking from '../models/Booking';
+import Driver from '../models/Driver';
 import { AuthRequest, ApiResponse } from '../types';
 import mongoose from 'mongoose';
 
@@ -271,6 +272,45 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
     });
     const completedBookings = await Booking.countDocuments({ status: 'delivered' });
 
+    // Get driver statistics
+    const totalDrivers = await Driver.countDocuments();
+    const activeDrivers = await Driver.countDocuments({ status: 'active' });
+    const availableDrivers = await Driver.countDocuments({ 
+      status: 'active', 
+      'availability.isAvailable': true 
+    });
+    const inactiveDrivers = await Driver.countDocuments({ status: 'inactive' });
+    const suspendedDrivers = await Driver.countDocuments({ status: 'suspended' });
+
+    // Get driver vehicle type distribution
+    const vehicleDistribution = await Driver.aggregate([
+      {
+        $group: {
+          _id: '$vehicle.type',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Get average driver rating
+    const avgRatingResult = await Driver.aggregate([
+      {
+        $match: { rating: { $gt: 0 } }
+      },
+      {
+        $group: {
+          _id: null,
+          averageRating: { $avg: '$rating' },
+          totalDeliveries: { $sum: '$totalDeliveries' }
+        }
+      }
+    ]);
+
+    const driverMetrics = avgRatingResult.length > 0 ? avgRatingResult[0] : {
+      averageRating: 0,
+      totalDeliveries: 0
+    };
+
     // Get revenue statistics
     const revenueResult = await Booking.aggregate([
       { $match: { status: 'delivered' } },
@@ -311,6 +351,19 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
         pending: pendingBookings,
         inTransit: inTransitBookings,
         completed: completedBookings
+      },
+      drivers: {
+        total: totalDrivers,
+        active: activeDrivers,
+        available: availableDrivers,
+        inactive: inactiveDrivers,
+        suspended: suspendedDrivers,
+        averageRating: parseFloat(driverMetrics.averageRating?.toFixed(2) || '0'),
+        totalDeliveries: driverMetrics.totalDeliveries,
+        vehicleDistribution: vehicleDistribution.reduce((acc: any, item: any) => {
+          acc[item._id] = item.count;
+          return acc;
+        }, {})
       },
       revenue: {
         total: totalRevenue,

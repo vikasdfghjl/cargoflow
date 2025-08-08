@@ -14,6 +14,7 @@ import bookingRoutes from './routes/booking';
 import adminRoutes from './routes/admin';
 import invoiceRoutes from './routes/invoice';
 import customerRoutes from './routes/customer';
+import driverRoutes from './routes/driver';
 
 // Load environment variables
 dotenv.config();
@@ -151,6 +152,7 @@ app.use(`/api/${apiVersion}/bookings`, bookingRoutes);
 app.use(`/api/${apiVersion}/admin`, adminRoutes);
 app.use(`/api/${apiVersion}/invoices`, invoiceRoutes);
 app.use(`/api/${apiVersion}/customer`, customerRoutes);
+app.use(`/api/${apiVersion}/drivers`, driverRoutes);
 
 // 404 handler for unmatched routes
 app.use('*', (req, res) => {

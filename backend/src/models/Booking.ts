@@ -185,7 +185,7 @@ const bookingSchema = new Schema<IBooking>({
   },
   driverId: {
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Driver',
     sparse: true
   },
   

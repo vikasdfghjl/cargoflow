@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,11 +18,11 @@ import {
   User,
   Phone,
   Eye,
-  Edit
+  Edit,
+  UserCheck
 } from "lucide-react";
-import { useState, useEffect } from "react";
-import { bookingApi, type AdminBookingsResponse } from "@/lib/api";
-import type { Booking } from "@/types/booking";
+import { bookingApi, type AdminBookingsResponse, type Booking } from "@/lib/api";
+import ChangeDriverDialog from "./ChangeDriverDialog";
 
 interface BookingStats {
   totalBookings: Array<{ count: number }>;
@@ -45,6 +46,8 @@ const BookingOverview = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [updating, setUpdating] = useState<string | null>(null);
+  const [selectedBookingForDriverChange, setSelectedBookingForDriverChange] = useState<Booking | null>(null);
+  const [isChangeDriverDialogOpen, setIsChangeDriverDialogOpen] = useState(false);
 
   // Fetch bookings from API using the centralized API service
   const fetchBookings = async (page = 1, status = 'all') => {
@@ -71,6 +74,16 @@ const BookingOverview = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleChangeDriver = (booking: Booking) => {
+    setSelectedBookingForDriverChange(booking);
+    setIsChangeDriverDialogOpen(true);
+  };
+
+  const handleDriverChanged = () => {
+    // Refresh bookings data after driver change
+    fetchBookings(pagination.currentPage, statusFilter);
   };
 
   // Update booking status
@@ -402,6 +415,37 @@ const BookingOverview = () => {
                       <Calendar className="h-4 w-4 text-gray-500" />
                       <span className="text-sm">{formatDate(booking.createdAt)}</span>
                     </div>
+
+                    {/* Driver Assignment Information */}
+                    {booking.driverId && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+                        <div className="space-y-1">
+                          <h4 className="text-sm font-medium text-blue-900 flex items-center gap-1">
+                            <Truck className="h-3 w-3" />
+                            Package Assigned To
+                          </h4>
+                          <div className="text-xs space-y-1">
+                            <p className="text-blue-800">
+                              <strong>Driver:</strong> {booking.driverId.firstName} {booking.driverId.lastName}
+                            </p>
+                            <p className="text-blue-800">
+                              <strong>Vehicle:</strong> {booking.driverId.vehicle?.number} ({booking.driverId.vehicle?.type})
+                            </p>
+                            <p className="text-blue-800">
+                              <strong>Driver ID:</strong> {booking.driverId.licenseNumber}
+                            </p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleChangeDriver(booking)}
+                            className="mt-2 h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-100"
+                          >
+                            Change
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     
                     {booking.status === 'pending' && (
                       <div className="flex gap-2">
@@ -520,6 +564,17 @@ const BookingOverview = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Change Driver Dialog */}
+      <ChangeDriverDialog
+        isOpen={isChangeDriverDialogOpen}
+        onClose={() => {
+          setIsChangeDriverDialogOpen(false);
+          setSelectedBookingForDriverChange(null);
+        }}
+        booking={selectedBookingForDriverChange}
+        onDriverChanged={handleDriverChanged}
+      />
     </div>
   );
 };

@@ -192,6 +192,13 @@ export interface Booking {
     firstName: string;
     lastName: string;
     phone: string;
+    licenseNumber: string;
+    vehicle?: {
+      number: string;
+      type: string;
+      model: string;
+      capacity: number;
+    };
   };
   createdAt: string;
   updatedAt: string;
@@ -239,6 +246,90 @@ export interface CreateBookingRequest {
   weightCharges: number;
   insuranceCharges: number;
   totalCost: number;
+}
+
+// Driver types
+export interface Driver {
+  id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  licenseNumber: string;
+  licenseExpiry: string;
+  experience: number;
+  rating: number;
+  totalDeliveries: number;
+  status: 'active' | 'inactive' | 'suspended';
+  vehicle: {
+    number: string;
+    type: 'truck' | 'van' | 'bike' | 'car';
+    model: string;
+    capacity: number;
+  };
+  currentLocation?: {
+    latitude: number;
+    longitude: number;
+    address: string;
+    lastUpdated: string;
+  };
+  certifications: string[];
+  documents: {
+    license: string;
+    insurance: string;
+    registration: string;
+  };
+  availability: {
+    isAvailable: boolean;
+    availableFrom?: string;
+    availableTo?: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDriverRequest {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  licenseNumber: string;
+  licenseExpiry: string;
+  experience: number;
+  vehicle: {
+    number: string;
+    type: 'truck' | 'van' | 'bike' | 'car';
+    model: string;
+    capacity: number;
+  };
+  certifications?: string[];
+  documents: {
+    license: string;
+    insurance: string;
+    registration: string;
+  };
+}
+
+export interface DriversResponse {
+  drivers: Driver[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    itemsPerPage: number;
+  };
+}
+
+export interface DriverStatistics {
+  overview: {
+    totalDrivers: number;
+    activeDrivers: number;
+    availableDrivers: number;
+    avgRating: number;
+    totalDeliveries: number;
+  };
+  vehicleDistribution: Record<string, number>;
 }
 
 // Booking API functions
@@ -305,6 +396,19 @@ export const bookingApi = {
     }
 
     throw new ApiError(400, response.message || 'Failed to get booking');
+  },
+
+  async updateBooking(bookingId: string, updateData: Partial<Booking>): Promise<Booking> {
+    const response = await apiRequest<Booking>(`/bookings/${bookingId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updateData),
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to update booking');
   },
 
   async createBooking(bookingData: CreateBookingRequest): Promise<Booking> {
@@ -775,6 +879,207 @@ export const customerApi = {
     }
 
     throw new ApiError(400, response.message || 'Failed to fetch invoice details');
+  },
+};
+
+// Driver API functions
+export const driverApi = {
+  async getAllDrivers(params?: {
+    page?: number;
+    limit?: number;
+    status?: 'active' | 'inactive' | 'suspended';
+    vehicleType?: 'truck' | 'van' | 'bike' | 'car';
+    isAvailable?: boolean;
+    minRating?: number;
+    minExperience?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<DriversResponse> {
+    const queryParams = new URLSearchParams();
+    
+    Object.entries(params || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        queryParams.append(key, value.toString());
+      }
+    });
+
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/drivers?${queryString}` : '/drivers';
+    
+    const response = await apiRequest<DriversResponse>(endpoint, {
+      method: 'GET',
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to fetch drivers');
+  },
+
+  async getDriverById(driverId: string): Promise<Driver> {
+    const response = await apiRequest<Driver>(`/drivers/${driverId}`, {
+      method: 'GET',
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to fetch driver details');
+  },
+
+  async createDriver(driverData: CreateDriverRequest): Promise<Driver> {
+    const response = await apiRequest<Driver>('/drivers', {
+      method: 'POST',
+      body: JSON.stringify(driverData),
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to create driver');
+  },
+
+  async updateDriver(driverId: string, driverData: Partial<CreateDriverRequest>): Promise<Driver> {
+    const response = await apiRequest<Driver>(`/drivers/${driverId}`, {
+      method: 'PUT',
+      body: JSON.stringify(driverData),
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to update driver');
+  },
+
+  async deleteDriver(driverId: string): Promise<void> {
+    const response = await apiRequest<void>(`/drivers/${driverId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.success) {
+      throw new ApiError(400, response.message || 'Failed to delete driver');
+    }
+  },
+
+  async updateDriverStatus(driverId: string, status: 'active' | 'inactive' | 'suspended'): Promise<Driver> {
+    const response = await apiRequest<Driver>(`/drivers/${driverId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to update driver status');
+  },
+
+  async updateDriverLocation(driverId: string, location: {
+    latitude: number;
+    longitude: number;
+    address?: string;
+  }): Promise<Driver> {
+    const response = await apiRequest<Driver>(`/drivers/${driverId}/location`, {
+      method: 'PATCH',
+      body: JSON.stringify(location),
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to update driver location');
+  },
+
+  async updateDriverAvailability(driverId: string, availability: {
+    isAvailable: boolean;
+    availableFrom?: string;
+    availableTo?: string;
+  }): Promise<Driver> {
+    const response = await apiRequest<Driver>(`/drivers/${driverId}/availability`, {
+      method: 'PATCH',
+      body: JSON.stringify(availability),
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to update driver availability');
+  },
+
+  async getAvailableDrivers(location: {
+    latitude: number;
+    longitude: number;
+    vehicleType?: 'truck' | 'van' | 'bike' | 'car';
+    minCapacity?: number;
+    radius?: number;
+  }): Promise<Driver[]> {
+    const queryParams = new URLSearchParams();
+    
+    Object.entries(location).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        queryParams.append(key, value.toString());
+      }
+    });
+
+    const response = await apiRequest<Driver[]>(`/drivers/available?${queryParams.toString()}`, {
+      method: 'GET',
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to fetch available drivers');
+  },
+
+  async getDriverStatistics(): Promise<DriverStatistics> {
+    const response = await apiRequest<DriverStatistics>('/drivers/statistics', {
+      method: 'GET',
+    });
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to fetch driver statistics');
+  },
+
+  async assignDriverToBooking(driverId: string, bookingId: string): Promise<void> {
+    const response = await apiRequest<void>('/drivers/assign', {
+      method: 'POST',
+      body: JSON.stringify({ driverId, bookingId }),
+    });
+
+    if (!response.success) {
+      throw new ApiError(400, response.message || 'Failed to assign driver to booking');
+    }
+  },
+
+  async getDriverBookings(driverId: string): Promise<Booking[]> {
+    const response = await apiRequest<{
+      driverId: string;
+      bookings: Booking[];
+      pagination: {
+        currentPage: number;
+        totalPages: number;
+        totalItems: number;
+        itemsPerPage: number;
+      };
+    }>(`/drivers/${driverId}/bookings`, {
+      method: 'GET',
+    });
+
+    if (response.success && response.data) {
+      return response.data.bookings;
+    }
+
+    throw new ApiError(400, response.message || 'Failed to fetch driver bookings');
   },
 };
 

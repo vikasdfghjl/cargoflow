@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import mongoose from 'mongoose';
 import Booking, { IBooking as IBookingModel } from '../models/Booking';
+import Driver from '../models/Driver';
 import { AuthRequest, ApiResponse, IBooking } from '../types';
 import { BookingDraftService, StatelessSessionService } from '../services/StatelessSessionService';
 import { 
@@ -514,7 +515,7 @@ export const getAllBookings = async (req: AuthRequest, res: Response): Promise<v
         .skip(skip)
         .limit(limit)
         .populate('customerId', 'firstName lastName email companyName')
-        .populate('driverId', 'firstName lastName phone')
+        .populate('driverId', 'firstName lastName phone vehicle _id')
         .lean()
         .exec(),
       
@@ -576,6 +577,16 @@ export const updateBookingStatus = async (req: AuthRequest, res: Response): Prom
       return;
     }
 
+    // Get the current booking to check previous status
+    const currentBooking = await Booking.findById(bookingId);
+    if (!currentBooking) {
+      res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      } as ApiResponse);
+      return;
+    }
+
     // Update booking
     const updateData: any = { status };
     if (driverId) updateData.driverId = driverId;
@@ -594,6 +605,38 @@ export const updateBookingStatus = async (req: AuthRequest, res: Response): Prom
         message: 'Booking not found'
       } as ApiResponse);
       return;
+    }
+
+    // Handle driver total deliveries update based on status change
+    const previousStatus = currentBooking.status;
+    const newStatus = status;
+    
+    if (booking.driverId) {
+      try {
+        // If booking is newly marked as delivered, increment driver's total deliveries
+        if (newStatus === 'delivered' && previousStatus !== 'delivered') {
+          await Driver.findByIdAndUpdate(
+            booking.driverId,
+            { $inc: { totalDeliveries: 1 } },
+            { new: true }
+          );
+        }
+        // If booking was delivered but now changed to non-delivered status, decrement driver's total deliveries
+        else if (previousStatus === 'delivered' && newStatus !== 'delivered') {
+          // Ensure we don't go below 0
+          const driver = await Driver.findById(booking.driverId);
+          if (driver && driver.totalDeliveries > 0) {
+            await Driver.findByIdAndUpdate(
+              booking.driverId,
+              { $inc: { totalDeliveries: -1 } },
+              { new: true }
+            );
+          }
+        }
+      } catch (driverUpdateError) {
+        console.error('Error updating driver total deliveries:', driverUpdateError);
+        // Continue execution even if driver update fails - we don't want to fail the booking update
+      }
     }
 
     res.status(200).json({

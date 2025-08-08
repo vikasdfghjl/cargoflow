@@ -49,6 +49,13 @@ export interface Booking {
     firstName: string;
     lastName: string;
     phone: string;
+    licenseNumber: string;
+    vehicle?: {
+      number: string;
+      type: string;
+      model: string;
+      capacity: number;
+    };
   };
   createdAt: string;
   updatedAt: string;
