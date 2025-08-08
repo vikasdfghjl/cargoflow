@@ -4,12 +4,33 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Truck, Search, User, Phone, MapPin, Calendar, FileText, Loader2, AlertCircle } from "lucide-react";
+import { Truck, Search, User, Phone, MapPin, Calendar, FileText, Loader2, AlertCircle, Trash2 } from "lucide-react";
 import { Driver, driverApi, ApiError } from "@/lib/api";
 import AddDriverDialog from "./AddDriverDialog";
 import ViewAssignmentsDialog from "./ViewAssignmentsDialog";
 import AssignBookingDialog from "./AssignBookingDialog";
+import ConfirmDeleteDialog from "@/components/ui/ConfirmDeleteDialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+
+/*
+ * Driver Status Management System:
+ * 
+ * ACTIVE → Driver is working and available for assignments
+ *   ↓ Actions: "Set Inactive" (temporary break) | "Suspend Driver" (disciplinary)
+ *   ⚠️ DELETE NOT ALLOWED - Must deactivate first
+ *
+ * INACTIVE → Driver is temporarily not working (vacation, break, etc.)
+ *   ↓ Actions: "Activate" (return to work) | "Suspend Driver" (disciplinary)
+ *   ✅ DELETE ALLOWED - Can be permanently removed
+ *
+ * SUSPENDED → Driver is blocked due to violations/complaints (admin action required)
+ *   ↓ Actions: "Lift Suspension" (restore to inactive, then can be activated)
+ *   ✅ DELETE ALLOWED - Can be permanently removed
+ *
+ * DELETE → Permanent removal from system (cannot be undone)
+ *   - Only allowed for INACTIVE or SUSPENDED drivers
+ *   - Active drivers must be deactivated first
+ */
 
 const DriverManagement = () => {
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -21,6 +42,9 @@ const DriverManagement = () => {
   const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
   const [isViewAssignmentsOpen, setIsViewAssignmentsOpen] = useState(false);
   const [isAssignBookingOpen, setIsAssignBookingOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [driverToDelete, setDriverToDelete] = useState<Driver | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Load drivers on component mount
   useEffect(() => {
@@ -87,6 +111,61 @@ const DriverManagement = () => {
     }
   };
 
+  const handleDeleteClick = (driver: Driver) => {
+    setDriverToDelete(driver);
+    setIsDeleteDialogOpen(true);
+  };
+
+  // Check if driver can be deleted (only if inactive or suspended)
+  const canDeleteDriver = (driver: Driver): { canDelete: boolean; reason?: string } => {
+    if (driver.status === 'active') {
+      return {
+        canDelete: false,
+        reason: 'Active drivers cannot be deleted. Please deactivate the driver first.'
+      };
+    }
+    return { canDelete: true };
+  };
+
+  // Get the appropriate action to take before deletion
+  const getPrerequisiteAction = (driver: Driver) => {
+    if (driver.status === 'active') {
+      return {
+        action: () => handleStatusUpdate(driver.id, 'inactive'),
+        label: 'Deactivate Driver First'
+      };
+    }
+    return null;
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!driverToDelete) return;
+
+    try {
+      setIsDeleting(true);
+      setError(null);
+      await driverApi.deleteDriver(driverToDelete.id);
+      
+      // Close dialog and refresh the list
+      setIsDeleteDialogOpen(false);
+      setDriverToDelete(null);
+      await loadDrivers();
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setError(error.message);
+      } else {
+        setError('Failed to delete driver. Please try again.');
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setIsDeleteDialogOpen(false);
+    setDriverToDelete(null);
+  };
+
   // Filter drivers based on search and status
   const filteredDrivers = drivers.filter(driver => {
     const matchesSearch = !searchQuery || 
@@ -103,9 +182,19 @@ const DriverManagement = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-status-success text-white';
-      case 'inactive': return 'bg-neutral-500 text-white';
-      case 'suspended': return 'bg-status-error text-white';
+      case 'inactive': return 'bg-amber-500 text-white';
+      case 'suspended': return 'bg-destructive text-white';
       default: return 'bg-neutral-300';
+    }
+  };
+
+  // Get status description for better UX
+  const getStatusDescription = (status: string) => {
+    switch (status) {
+      case 'active': return 'Driver is available for assignments';
+      case 'inactive': return 'Driver is temporarily not working';
+      case 'suspended': return 'Driver suspended - requires admin action';
+      default: return 'Unknown status';
     }
   };
 
@@ -196,6 +285,14 @@ const DriverManagement = () => {
         </CardContent>
       </Card>
 
+      {/* Safety Info Alert */}
+      <Alert className="border-blue-200 bg-blue-50">
+        <AlertCircle className="h-4 w-4 text-blue-600" />
+        <AlertDescription className="text-blue-800">
+          <strong>Deletion Policy:</strong> Active drivers cannot be deleted. Please deactivate or suspend drivers before permanent deletion to ensure safety and data integrity.
+        </AlertDescription>
+      </Alert>
+
       {/* Driver Cards */}
       <div className="grid gap-6">
         {filteredDrivers.length === 0 ? (
@@ -233,9 +330,14 @@ const DriverManagement = () => {
                           <h4 className="text-lg font-semibold text-transport-primary">
                             {driver.fullName}
                           </h4>
-                          <Badge className={getStatusColor(driver.status)}>
-                            {driver.status}
-                          </Badge>
+                          <div className="text-right">
+                            <Badge className={getStatusColor(driver.status)}>
+                              {driver.status}
+                            </Badge>
+                            <p className="text-xs text-neutral-500 mt-1">
+                              {getStatusDescription(driver.status)}
+                            </p>
+                          </div>
                         </div>
                         <p className="text-sm text-neutral-600">ID: {driver.id}</p>
                         <div className="flex items-center mt-1">
@@ -329,35 +431,78 @@ const DriverManagement = () => {
                       Documents
                     </Button>
                     <Button variant="outline" size="sm">Edit Profile</Button>
-                    {driver.status === 'active' ? (
+                    
+                    {/* Status Management Buttons */}
+                    {driver.status === 'active' && (
+                      <>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-amber-600 border-amber-600 hover:bg-amber-600 hover:text-white"
+                          onClick={() => handleStatusUpdate(driver.id, 'inactive')}
+                        >
+                          Set Inactive
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-red-600 border-red-600 hover:bg-red-600 hover:text-white"
+                          onClick={() => handleStatusUpdate(driver.id, 'suspended')}
+                        >
+                          Suspend Driver
+                        </Button>
+                      </>
+                    )}
+                    
+                    {driver.status === 'inactive' && (
+                      <>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-green-600 border-green-600 hover:bg-green-600 hover:text-white"
+                          onClick={() => handleStatusUpdate(driver.id, 'active')}
+                        >
+                          Activate
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-red-600 border-red-600 hover:bg-red-600 hover:text-white"
+                          onClick={() => handleStatusUpdate(driver.id, 'suspended')}
+                        >
+                          Suspend Driver
+                        </Button>
+                      </>
+                    )}
+                    
+                    {driver.status === 'suspended' && (
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className="text-amber-600 border-amber-600 hover:bg-amber-600 hover:text-white"
+                        className="text-blue-600 border-blue-600 hover:bg-blue-600 hover:text-white"
                         onClick={() => handleStatusUpdate(driver.id, 'inactive')}
                       >
-                        Deactivate
-                      </Button>
-                    ) : driver.status === 'inactive' ? (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="text-green-600 border-green-600 hover:bg-green-600 hover:text-white"
-                        onClick={() => handleStatusUpdate(driver.id, 'active')}
-                      >
-                        Activate
-                      </Button>
-                    ) : null}
-                    {driver.status !== 'suspended' && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="text-destructive border-destructive hover:bg-destructive hover:text-white"
-                        onClick={() => handleStatusUpdate(driver.id, 'suspended')}
-                      >
-                        Suspend
+                        Lift Suspension
                       </Button>
                     )}
+                    
+                    {/* Permanent Delete - Most Dangerous Action */}
+                    <div className="border-t border-gray-200 pt-2 mt-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className={`w-full ${
+                          driver.status === 'active' 
+                            ? 'text-gray-400 border-gray-300 cursor-not-allowed' 
+                            : 'text-destructive border-destructive hover:bg-destructive hover:text-white'
+                        }`}
+                        onClick={() => handleDeleteClick(driver)}
+                        title={driver.status === 'active' ? 'Active drivers cannot be deleted' : 'Delete driver permanently'}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        {driver.status === 'active' ? 'Delete (Not Allowed)' : 'Delete Permanently'}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -390,6 +535,27 @@ const DriverManagement = () => {
           onClose={() => setIsAssignBookingOpen(false)}
           driver={selectedDriver}
           onAssignmentComplete={handleAssignmentComplete}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {driverToDelete && (
+        <ConfirmDeleteDialog
+          isOpen={isDeleteDialogOpen}
+          onClose={handleDeleteCancel}
+          onConfirm={handleDeleteConfirm}
+          title={canDeleteDriver(driverToDelete).canDelete ? "Delete Driver" : "Cannot Delete Driver"}
+          description={
+            canDeleteDriver(driverToDelete).canDelete 
+              ? "Are you sure you want to delete this driver? This action cannot be undone and will remove all driver data from the system."
+              : "This driver cannot be deleted in their current status. Please follow the required workflow first."
+          }
+          itemName={driverToDelete.fullName}
+          isDeleting={isDeleting}
+          canDelete={canDeleteDriver(driverToDelete).canDelete}
+          blockReason={canDeleteDriver(driverToDelete).reason}
+          onPrerequisiteAction={getPrerequisiteAction(driverToDelete)?.action}
+          prerequisiteActionLabel={getPrerequisiteAction(driverToDelete)?.label}
         />
       )}
     </div>

@@ -306,7 +306,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
       }
     ]);
 
-    const driverMetrics = avgRatingResult.length > 0 ? avgRatingResult[0] : {
+    const driverMetrics = (avgRatingResult && avgRatingResult.length > 0) ? avgRatingResult[0] : {
       averageRating: 0,
       totalDeliveries: 0
     };
@@ -316,7 +316,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response): Promis
       { $match: { status: 'delivered' } },
       { $group: { _id: null, totalRevenue: { $sum: '$totalCost' } } }
     ]);
-    const totalRevenue = revenueResult.length > 0 ? revenueResult[0].totalRevenue : 0;
+    const totalRevenue = (revenueResult && revenueResult.length > 0) ? revenueResult[0].totalRevenue : 0;
 
     // Get monthly revenue for current year
     const currentYear = new Date().getFullYear();

@@ -43,6 +43,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   useEffect(() => {
     const initializeAuth = async () => {
       const token = localStorage.getItem('authToken');
+      
       if (token) {
         try {
           const userData = await authApi.getProfile();
